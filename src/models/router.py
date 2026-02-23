@@ -2,11 +2,12 @@
 Layer 4 — Model Tier Router
 Implements tiered routing: 80% local 7B → 15% local 22B → 5% Claude cloud.
 Complexity estimation drives tier selection.
+Includes cost tracking: cumulative input/output tokens + estimated USD cost.
 """
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any, Optional
 
@@ -18,6 +19,18 @@ try:
     OLLAMA_AVAILABLE = True
 except ImportError:
     OLLAMA_AVAILABLE = False
+
+# ---------------------------------------------------------------------------
+# Pricing constants (USD per 1M tokens, as of early 2026)
+# Update when Anthropic changes pricing.
+# ---------------------------------------------------------------------------
+CLOUD_PRICING: dict[str, dict[str, float]] = {
+    "claude-opus-4-6": {"input": 15.0, "output": 75.0},
+    "claude-sonnet-4-6": {"input": 3.0,  "output": 15.0},
+    "claude-haiku-3-5":  {"input": 0.8,  "output": 4.0},
+}
+# Local models: cost is $0 (self-hosted) but we track tokens for auditing.
+LOCAL_COST_PER_TOKEN: float = 0.0
 
 
 class Tier(IntEnum):
@@ -49,15 +62,39 @@ class ModelResponse:
     output_tokens: int = 0
 
 
+@dataclass
+class TierCostSummary:
+    """Cost and token usage for one tier."""
+    tier: Tier
+    calls: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    estimated_cost_usd: float = 0.0
+
+    def to_dict(self) -> dict:
+        return {
+            "tier": self.tier.name,
+            "calls": self.calls,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "estimated_cost_usd": round(self.estimated_cost_usd, 6),
+        }
+
+
 class ModelRouter:
     """
     Routes LLM requests to the appropriate tier based on task complexity.
     Falls back to the next tier if a lower tier fails or is unavailable.
+    Tracks cumulative token usage and estimated cost per tier.
     """
 
     def __init__(self, config: dict):
         self.config = config
         self._anthropic: Optional[anthropic.Anthropic] = None
+        # Cost tracking: one entry per Tier
+        self._cost: dict[Tier, TierCostSummary] = {
+            t: TierCostSummary(tier=t) for t in Tier
+        }
 
     @property
     def anthropic_client(self) -> anthropic.Anthropic:
@@ -86,7 +123,9 @@ class ModelRouter:
         # Try each tier, escalate on failure
         for attempt_tier in (Tier(t) for t in range(tier, Tier.CLOUD + 1)):
             try:
-                return self._call_tier(attempt_tier, prompt, system, max_tokens)
+                response = self._call_tier(attempt_tier, prompt, system, max_tokens)
+                self._record_usage(response)
+                return response
             except Exception as e:
                 if attempt_tier == Tier.CLOUD:
                     raise
@@ -171,6 +210,61 @@ class ModelRouter:
             input_tokens=response.usage.input_tokens,
             output_tokens=response.usage.output_tokens,
         )
+
+    # ------------------------------------------------------------------ #
+    #  Cost tracking                                                       #
+    # ------------------------------------------------------------------ #
+
+    def _record_usage(self, response: ModelResponse) -> None:
+        """Update cumulative cost counters from a completed response."""
+        summary = self._cost[response.tier_used]
+        summary.calls += 1
+        summary.input_tokens += response.input_tokens
+        summary.output_tokens += response.output_tokens
+
+        if response.tier_used == Tier.CLOUD:
+            pricing = CLOUD_PRICING.get(response.model, {"input": 15.0, "output": 75.0})
+            cost = (
+                response.input_tokens * pricing["input"] / 1_000_000
+                + response.output_tokens * pricing["output"] / 1_000_000
+            )
+            summary.estimated_cost_usd += cost
+
+    def get_cost_summary(self) -> dict:
+        """
+        Return a dict summarising token usage and estimated USD cost.
+
+        Example return value::
+
+            {
+                "total_calls": 42,
+                "total_input_tokens": 123456,
+                "total_output_tokens": 45678,
+                "total_estimated_cost_usd": 0.034567,
+                "by_tier": {
+                    "LOCAL_SMALL": {"calls": 30, "input_tokens": ..., ...},
+                    "LOCAL_LARGE": {...},
+                    "CLOUD":       {...},
+                },
+            }
+        """
+        by_tier = {t.name: s.to_dict() for t, s in self._cost.items()}
+        total_calls = sum(s.calls for s in self._cost.values())
+        total_in = sum(s.input_tokens for s in self._cost.values())
+        total_out = sum(s.output_tokens for s in self._cost.values())
+        total_cost = sum(s.estimated_cost_usd for s in self._cost.values())
+        return {
+            "total_calls": total_calls,
+            "total_input_tokens": total_in,
+            "total_output_tokens": total_out,
+            "total_estimated_cost_usd": round(total_cost, 6),
+            "by_tier": by_tier,
+        }
+
+    def reset_cost_counters(self) -> None:
+        """Reset all cost tracking counters to zero."""
+        for t in Tier:
+            self._cost[t] = TierCostSummary(tier=t)
 
     # ------------------------------------------------------------------ #
     #  Complexity estimation heuristics                                    #

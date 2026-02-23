@@ -414,7 +414,19 @@ Be methodical. Document every finding with evidence."""
 
         # ---------- State / Report ----------
         elif name == "get_analysis_state":
-            return json.loads(self.state.to_summary())
+            state_summary = json.loads(self.state.to_summary())
+            # Attach cost summary from the shared router
+            try:
+                router = (
+                    self.static_analyst.router
+                    if hasattr(self.static_analyst, "router")
+                    else None
+                )
+                if router is not None:
+                    state_summary["cost_summary"] = router.get_cost_summary()
+            except Exception:
+                pass
+            return state_summary
 
         elif name == "generate_report":
             return self._generate_report(inputs.get("mode", "general"))

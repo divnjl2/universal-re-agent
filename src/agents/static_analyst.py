@@ -2,16 +2,20 @@
 Agent 2 — Static Analyst
 Ghidra headless decompilation via MCP.
 Pattern: FLIRT → lib identification → LLM analysis of app code (ReVa fragments).
+Supports parallel decompile+analyse via asyncio.gather when parallel_workers > 1.
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Optional
 
 from .base import BaseAgent, AnalysisState
 from ..mcp.ghidra import GhidraMCPClient, DecompiledFunction
 from ..mcp.client import MCPError
 from ..models.router import ModelRouter, TaskComplexity, Tier
+from ..models.context_budget import ContextBudget
 from ..knowledge.vector_store import VectorStore, FunctionRecord
+from ..knowledge.mitre_attack import MitreAttackMapper
 
 
 STATIC_SYSTEM_PROMPT = """\
@@ -59,6 +63,11 @@ class StaticAnalystAgent(BaseAgent):
         )
         self.router = router or ModelRouter(config)
         self.vector_store = vector_store or VectorStore(config)
+        self.budget = ContextBudget(config)
+        self.mitre = MitreAttackMapper(config)
+        self._parallel_workers: int = (
+            config.get("analysis", {}).get("parallel_workers", 1)
+        )
 
     # ------------------------------------------------------------------ #
     #  Public interface (called by Orchestrator)                           #
@@ -68,7 +77,7 @@ class StaticAnalystAgent(BaseAgent):
         """
         Full static analysis pass:
         1. Auto-apply FLIRT signatures (removes library noise)
-        2. Decompile all app functions
+        2. Decompile all app functions (parallel when parallel_workers > 1)
         3. LLM analysis of each fragment (ReVa pattern)
         4. Store embeddings in vector store
         """
@@ -78,7 +87,11 @@ class StaticAnalystAgent(BaseAgent):
         self._apply_signatures()
 
         # Step 2: List + decompile functions
-        functions = self._decompile_all(limit)
+        if self._parallel_workers > 1:
+            functions = asyncio.run(self._decompile_all_parallel(limit))
+        else:
+            functions = self._decompile_all(limit)
+
         if not functions:
             self.log_warning("No functions retrieved from Ghidra — is GhidraMCP running?")
             return
@@ -148,29 +161,65 @@ class StaticAnalystAgent(BaseAgent):
             self.log_warning(f"Could not apply signatures: {e}")
 
     def _decompile_all(self, limit: int) -> list[DecompiledFunction]:
-        """Fetch decompiled functions from Ghidra."""
+        """Fetch decompiled functions from Ghidra (sequential)."""
         try:
-            funcs = []
-
             def progress(current, total, name):
                 if current % 20 == 0:
                     self.log(f"  Decompiled {current}/{total}: {name}")
 
             funcs = self.ghidra.decompile_all(limit=limit, progress_cb=progress)
-            # Cache in shared state
-            self.state.functions = [
-                {
-                    "address": f.address,
-                    "name": f.name,
-                    "pseudocode": f.pseudocode,
-                    "size": f.size,
-                }
-                for f in funcs
-            ]
+            self._cache_functions(funcs)
             return funcs
         except MCPError as e:
             self.log_error(f"Failed to decompile functions: {e}")
             return []
+
+    async def _decompile_all_parallel(self, limit: int) -> list[DecompiledFunction]:
+        """
+        Decompile all functions in parallel using AsyncGhidraMCPClient.
+        Uses parallel_workers from config for concurrency control.
+        """
+        from ..mcp.async_ghidra import AsyncGhidraMCPClient
+        ghidra_cfg = self.config.get("mcp", {}).get("ghidra", {})
+        async with AsyncGhidraMCPClient(
+            host=ghidra_cfg.get("host", "localhost"),
+            port=ghidra_cfg.get("port", 8765),
+            timeout=ghidra_cfg.get("timeout", 30),
+            max_connections=self._parallel_workers + 2,
+        ) as client:
+            completed_ref = [0]
+
+            def progress(current: int, total: int, name: str) -> None:
+                if current % 20 == 0:
+                    self.log(f"  Decompiled {current}/{total}: {name}")
+
+            try:
+                funcs = await client.decompile_all_parallel(
+                    limit=limit,
+                    max_workers=self._parallel_workers,
+                    progress_cb=progress,
+                )
+                self._cache_functions(funcs)
+                self.log_info(
+                    f"Parallel decompile complete: {len(funcs)} functions "
+                    f"(workers={self._parallel_workers})"
+                )
+                return funcs
+            except Exception as e:
+                self.log_warning(f"Parallel decompile failed ({e}); falling back to sequential")
+                return self._decompile_all(limit)
+
+    def _cache_functions(self, funcs: list[DecompiledFunction]) -> None:
+        """Store decompiled functions in shared state."""
+        self.state.functions = [
+            {
+                "address": f.address,
+                "name": f.name,
+                "pseudocode": f.pseudocode,
+                "size": f.size,
+            }
+            for f in funcs
+        ]
 
     def _analyse_function(self, fn: DecompiledFunction) -> dict:
         """
@@ -185,13 +234,20 @@ class StaticAnalystAgent(BaseAgent):
 
         # Build context fragment (ReVa pattern: small + focused)
         xref_summary = self.get_xrefs_summary(fn.address)
-        similar = self.search_similar(fn.pseudocode[:500], n=3)
+        similar = self.search_similar(
+            self.budget.fit_text(fn.pseudocode, "similar"), n=3
+        )
         similar_context = ""
         if similar:
-            similar_context = "\nSimilar known functions:\n" + "\n".join(
+            similar_text = "\n".join(
                 f"  - {s['suggested_name']} (similarity {s['similarity']}, from {s['binary']})"
                 for s in similar
             )
+            similar_context = "\nSimilar known functions:\n" + self.budget.fit_similar_context(
+                similar_text
+            )
+
+        pseudocode_block = self.budget.fit_pseudocode(fn.pseudocode)
 
         prompt = f"""Analyse this decompiled function:
 
@@ -202,7 +258,7 @@ References: {xref_summary}
 
 Pseudocode:
 ```c
-{fn.pseudocode[:3000]}
+{pseudocode_block}
 ```
 
 Respond with JSON only."""
@@ -269,17 +325,28 @@ Respond with JSON only."""
         )
         self.vector_store.store(record)
 
+        # MITRE ATT&CK mapping
+        category = analysis.get("tags", [])
+        category_str = category[0] if category else ""
+        self.mitre.update_state_ttps(
+            state=self.state,
+            pseudocode=fn.pseudocode,
+            category=category_str,
+            use_llm=False,
+            function_name=suggested_name,
+        )
+
         # Surface security findings
         if analysis.get("security_relevant"):
             self.add_finding(
                 finding=f"{suggested_name} @ {fn.address}: {analysis.get('security_notes', '')}",
-                evidence=fn.pseudocode[:300],
+                evidence=self.budget.fit_evidence(fn.pseudocode),
                 confidence=float(analysis.get("confidence", 0.7)),
             )
 
         self.add_evidence(
             tool="GhidraMCP+LLM",
-            raw=fn.pseudocode[:200],
+            raw=self.budget.fit_text(fn.pseudocode, "evidence"),
             interpretation=analysis.get("purpose", ""),
             confidence=float(analysis.get("confidence", 0.5)),
         )

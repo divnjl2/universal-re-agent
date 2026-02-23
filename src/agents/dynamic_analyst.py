@@ -11,6 +11,7 @@ from .base import BaseAgent, AnalysisState
 from ..mcp.frida_bridge import FridaMCPClient
 from ..mcp.client import MCPError
 from ..models.router import ModelRouter, Tier
+from ..models.context_budget import ContextBudget
 
 
 DYNAMIC_SYSTEM_PROMPT = """\
@@ -58,6 +59,7 @@ class DynamicAnalystAgent(BaseAgent):
             port=config.get("mcp", {}).get("frida", {}).get("port", 8766),
         )
         self.router = router or ModelRouter(config)
+        self.budget = ContextBudget(config)
 
     # ------------------------------------------------------------------ #
     #  Public interface                                                    #
@@ -123,7 +125,7 @@ Return JSON with fields: hook_type, script, rationale, expected_output"""
         self.state.hooks_generated.append(hook_data)
         self.add_finding(
             f"Hook generated for {address}: {hook_data.get('rationale', '')}",
-            evidence=hook_data.get("script", "")[:200],
+            evidence=self.budget.fit_evidence(hook_data.get("script", "")),
             confidence=0.9,
         )
         return hook_data
@@ -263,16 +265,18 @@ try {{
         for addr, count in top:
             summary += f"  {addr}: {count}x\n"
 
+        truncated_summary = self.budget.fit_summary(summary)
+
         try:
             response = self.router.complete(
-                prompt=f"Interpret this Stalker execution trace:\n{summary}\n"
+                prompt=f"Interpret this Stalker execution trace:\n{truncated_summary}\n"
                        "What is the code doing? Identify suspicious patterns.",
                 system=DYNAMIC_SYSTEM_PROMPT,
                 max_tokens=512,
             )
             self.add_finding(
                 f"Stalker trace interpretation: {response.text[:200]}",
-                evidence=summary[:300],
+                evidence=self.budget.fit_evidence(summary),
                 confidence=0.7,
             )
         except Exception as e:

@@ -13,6 +13,7 @@ dependencies = [
     "chromadb>=0.5.0",
     "ollama>=0.3.0",
     "lief>=0.15.0",
+    "pefile>=2023.2.7",
     "pyyaml>=6.0",
     "rich>=13.0",
     "click>=8.1",
@@ -36,6 +37,10 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
 
 [tool.mypy]
 python_version = "3.11"

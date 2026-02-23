@@ -18,6 +18,12 @@ try:
 except ImportError:
     LIEF_AVAILABLE = False
 
+try:
+    import pefile as _pefile
+    PEFILE_AVAILABLE = True
+except ImportError:
+    PEFILE_AVAILABLE = False
+
 
 class BinaryFormat(str, Enum):
     PE = "PE"
@@ -103,10 +109,21 @@ class BinaryProfiler:
 
         profile = BinaryProfile(path=str(path))
 
+        lief_ok = False
         if LIEF_AVAILABLE:
-            self._parse_lief(path, profile)
-        else:
-            profile.analysis_notes.append("LIEF not installed — install with: pip install lief")
+            try:
+                self._parse_lief(path, profile)
+                lief_ok = True
+            except Exception as exc:
+                profile.analysis_notes.append(f"LIEF parse failed ({exc}); trying pefile fallback")
+
+        # pefile fallback: used when LIEF is absent or failed for PE files
+        if not lief_ok and PEFILE_AVAILABLE:
+            self._parse_pefile_fallback(path, profile)
+        elif not lief_ok and not PEFILE_AVAILABLE:
+            profile.analysis_notes.append(
+                "LIEF not installed — install with: pip install lief"
+            )
 
         die_data = self._run_die(path)
         if die_data:
@@ -115,7 +132,118 @@ class BinaryProfiler:
 
         self._detect_protection(profile)
         self._recommend_bypass(profile)
+        self._run_language_analyzer(path, profile)
         return profile
+
+    # ------------------------------------------------------------------ #
+    #  pefile fallback                                                     #
+    # ------------------------------------------------------------------ #
+
+    def _parse_pefile_fallback(self, path: Path, profile: BinaryProfile) -> None:
+        """
+        Basic PE parsing using pefile when LIEF is unavailable or has failed.
+        Populates arch, bits, imports, exports, sections, compiler hints.
+        """
+        if not PEFILE_AVAILABLE:
+            return
+        try:
+            pe = _pefile.PE(str(path), fast_load=False)
+        except Exception as exc:
+            profile.analysis_notes.append(f"pefile fallback also failed: {exc}")
+            return
+
+        profile.format = BinaryFormat.PE
+        profile.analysis_notes.append("Parsed with pefile (LIEF fallback)")
+
+        # Architecture
+        machine = pe.FILE_HEADER.Machine
+        MACHINE_AMD64 = 0x8664
+        MACHINE_I386 = 0x014C
+        MACHINE_ARM = 0x01C0
+        MACHINE_ARM64 = 0xAA64
+        arch_map = {
+            MACHINE_AMD64: ("x86_64", 64),
+            MACHINE_I386:  ("x86",    32),
+            MACHINE_ARM:   ("ARM",    32),
+            MACHINE_ARM64: ("AArch64", 64),
+        }
+        arch, bits = arch_map.get(machine, ("unknown", 64))
+        profile.arch = arch
+        profile.bits = bits
+
+        # Imports
+        if hasattr(pe, "DIRECTORY_ENTRY_IMPORT"):
+            for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                try:
+                    dll_name = entry.dll.decode("ascii", errors="replace")
+                    profile.imports.append(dll_name)
+                    self._detect_language_from_import(dll_name, profile)
+                except Exception:
+                    continue
+
+        # Exports
+        if hasattr(pe, "DIRECTORY_ENTRY_EXPORT"):
+            for exp in pe.DIRECTORY_ENTRY_EXPORT.symbols:
+                try:
+                    if exp.name:
+                        profile.exports.append(exp.name.decode("ascii", errors="replace"))
+                except Exception:
+                    continue
+            profile.exports = profile.exports[:100]
+
+        # Sections
+        for sec in pe.sections:
+            try:
+                name = sec.Name.rstrip(b"\x00").decode("ascii", errors="replace")
+                entropy = sec.get_entropy()
+                profile.sections.append({
+                    "name": name,
+                    "virtual_size": sec.Misc_VirtualSize,
+                    "entropy": round(entropy, 2),
+                    "characteristics": hex(sec.Characteristics),
+                })
+            except Exception:
+                continue
+
+        self._detect_language_from_sections(profile)
+
+        # Debug directory
+        try:
+            profile.has_debug_info = bool(
+                pe.OPTIONAL_HEADER.DATA_DIRECTORY[6].Size > 0  # IMAGE_DIRECTORY_ENTRY_DEBUG
+            )
+        except Exception:
+            pass
+
+        pe.close()
+
+    # ------------------------------------------------------------------ #
+    #  Language analyzer integration                                       #
+    # ------------------------------------------------------------------ #
+
+    def _run_language_analyzer(self, path: Path, profile: BinaryProfile) -> None:
+        """
+        Run language-specific analysis pipeline based on detected language.
+        Appends notes to profile.analysis_notes.
+        """
+        lang_value = profile.language.value if hasattr(profile.language, "value") else str(profile.language)
+        if lang_value in ("unknown", "C/C++", ".NET"):
+            return  # no specialised pipeline for these
+
+        try:
+            from .language_analyzer import LanguageAnalyzer
+            analyzer = LanguageAnalyzer()
+            result = analyzer.analyse(
+                language=lang_value,
+                binary_path=str(path),
+            )
+            profile.analysis_notes.extend(result.analysis_notes)
+            if result.python_extraction_hint:
+                profile.analysis_notes.append(
+                    f"Extraction hint:\n{result.python_extraction_hint}"
+                )
+        except Exception as exc:
+            profile.analysis_notes.append(f"Language analyzer error: {exc}")
 
     # ------------------------------------------------------------------ #
     #  LIEF parsing                                                        #

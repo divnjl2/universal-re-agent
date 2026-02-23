@@ -12,7 +12,9 @@ from typing import Optional
 
 from .base import BaseAgent, AnalysisState
 from ..models.router import ModelRouter, TaskComplexity, Tier
+from ..models.context_budget import ContextBudget
 from ..knowledge.vector_store import VectorStore, FunctionRecord
+from ..knowledge.mitre_attack import MitreAttackMapper
 
 
 CODE_INTERP_SYSTEM = """\
@@ -92,6 +94,8 @@ class CodeInterpreterAgent(BaseAgent):
         super().__init__("CodeInterpreter", config, state)
         self.router = router or ModelRouter(config)
         self.vector_store = vector_store or VectorStore(config)
+        self.budget = ContextBudget(config)
+        self.mitre = MitreAttackMapper(config)
 
     # ------------------------------------------------------------------ #
     #  Public interface                                                    #
@@ -105,7 +109,9 @@ class CodeInterpreterAgent(BaseAgent):
         self.log(f"Annotating {address}")
 
         # Check vector store for similar functions first (RAG)
-        similar = self.vector_store.search(pseudocode[:500], n_results=3)
+        similar = self.vector_store.search(
+            self.budget.fit_text(pseudocode, "similar"), n_results=3
+        )
         context_hint = ""
         if similar and similar[0].similarity > 0.85:
             best = similar[0].record
@@ -114,6 +120,8 @@ class CodeInterpreterAgent(BaseAgent):
                 f"(similarity {similar[0].similarity:.2f}) — consider this context."
             )
 
+        pseudocode_block = self.budget.fit_pseudocode(pseudocode)
+
         prompt = f"""Annotate this decompiled function with names and types:
 
 Address: {address}
@@ -121,7 +129,7 @@ Address: {address}
 
 Pseudocode:
 ```c
-{pseudocode[:3000]}
+{pseudocode_block}
 ```
 
 Return JSON only."""
@@ -157,14 +165,21 @@ Return JSON only."""
         # Update shared state
         self.state.named_functions[address] = annotation.function_name
 
-        # Record interesting categories
+        # Record interesting categories + MITRE mapping
         if annotation.function_category in ("crypto", "network", "anti_debug", "obfuscation"):
             self.add_finding(
                 f"{annotation.function_category.upper()} function: "
                 f"{annotation.function_name} @ {address}",
-                evidence=pseudocode[:200],
+                evidence=self.budget.fit_evidence(pseudocode),
                 confidence=annotation.confidence,
             )
+        self.mitre.update_state_ttps(
+            state=self.state,
+            pseudocode=pseudocode,
+            category=annotation.function_category,
+            use_llm=False,
+            function_name=annotation.function_name,
+        )
 
         # Update vector store with enriched record
         binary = self.state.binary_path.split("/")[-1].split("\\")[-1]
@@ -190,7 +205,7 @@ Return JSON only."""
         prompt = f"""Recover struct definition from these memory access patterns:
 
 ```c
-{pseudocode[:2000]}
+{self.budget.fit_text(pseudocode, "summary")}
 ```
 
 Look for patterns like: ptr[offset], *(ptr + N), obj->field.
@@ -233,7 +248,7 @@ Return JSON only."""
             batch = functions[i : i + batch_size]
             summaries = "\n\n".join(
                 f"[{j}] {fn.get('address', '')} {fn.get('name', '')}:\n"
-                + fn.get("pseudocode", "")[:300]
+                + self.budget.fit_batch_entry(fn.get("pseudocode", ""), batch_size=batch_size)
                 for j, fn in enumerate(batch)
             )
             prompt = f"""Classify each function by category.
@@ -270,7 +285,7 @@ Return JSON array: [{{"index": 0, "category": "...", "confidence": 0.8}}, ...]""
                 prompt=f"""Provide a deep semantic explanation of this algorithm:
 
 ```c
-{pseudocode[:5000]}
+{self.budget.fit_pseudocode(pseudocode)}
 ```
 
 Identify:
@@ -302,7 +317,7 @@ Be specific and technical.""",
         prompt = f"""Extract Indicators of Compromise from this code:
 
 ```c
-{pseudocode[:3000]}
+{self.budget.fit_pseudocode(pseudocode)}
 ```
 
 Look for: hardcoded IPs, domains, URLs, file paths, registry keys, mutex names,
