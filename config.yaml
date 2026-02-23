@@ -1,0 +1,56 @@
+# Universal RE Agent — Configuration
+# Copy .env.example to .env and set ANTHROPIC_API_KEY
+
+models:
+  # Tier 1 — local workers (80% of tasks: simple naming, typing, explanation)
+  tier1:
+    provider: ollama
+    model: "qwen2.5-coder:7b"      # swap to reCopilot-7B-GGUF when available
+    base_url: "http://localhost:11434"
+    complexity_threshold: 0.35     # below this → tier1
+
+  # Tier 2 — local orchestrators (15% of tasks: complex reasoning, CFG)
+  tier2:
+    provider: ollama
+    model: "devstral:24b"          # or llm4decompile:22b
+    base_url: "http://localhost:11434"
+    complexity_threshold: 0.80     # below this → tier2
+
+  # Tier 3 — cloud escalation (5% of tasks: obfuscation, novel malware)
+  tier3:
+    provider: anthropic
+    model: "claude-opus-4-6"
+    max_tokens: 16000
+
+mcp:
+  ghidra:
+    enabled: true
+    host: "localhost"
+    port: 8765
+    timeout: 30
+  frida:
+    enabled: true
+    host: "localhost"
+    port: 8766
+    timeout: 60
+
+knowledge:
+  vector_store:
+    provider: chromadb
+    persist_dir: "./data/chroma"
+    collection: "re_functions"
+    embedding_model: "all-MiniLM-L6-v2"
+  signature_db:
+    path: "./data/signatures"
+  rlhf_db:
+    path: "./data/rlhf"
+
+analysis:
+  max_functions_per_session: 500
+  parallel_workers: 3
+  context_window_budget: 8000    # tokens per function analysis
+  chain_of_evidence: true        # log every finding with evidence
+
+logging:
+  level: "INFO"
+  rich_traceback: true
