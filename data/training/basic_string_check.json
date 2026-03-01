@@ -1,0 +1,7 @@
+{
+  "ground_truth": {
+    "password": "AgenticRE2026",
+    "mechanism": "strcmp"
+  },
+  "expected_ttp": []
+}

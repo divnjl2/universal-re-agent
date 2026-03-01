@@ -1,0 +1,8 @@
+{
+  "ground_truth": {
+    "mechanism": "IsDebuggerPresent"
+  },
+  "expected_ttp": [
+    "T1622 \u2014 Debugger Evasion"
+  ]
+}

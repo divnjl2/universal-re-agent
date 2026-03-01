@@ -1,0 +1,22 @@
+{
+  "agent_id": "re-agent-alpha",
+  "total_analyses": 1,
+  "skills": {
+    "StaticAnalyst": {
+      "name": "StaticAnalyst",
+      "success_count": 1,
+      "failure_count": 0,
+      "confidence": 0.55,
+      "last_used": 1772349513.7070327
+    },
+    "CodeInterpreter": {
+      "name": "CodeInterpreter",
+      "success_count": 1,
+      "failure_count": 0,
+      "confidence": 0.55,
+      "last_used": 1772349513.7070327
+    }
+  },
+  "known_packers": [],
+  "created_at": 1772349504.8421938
+}

@@ -9,10 +9,16 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Any, Optional
+from typing import Any, Optional, Iterator, Generator
 
 import anthropic
 import httpx
+
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
 
 try:
     import ollama as _ollama
@@ -91,6 +97,7 @@ class ModelRouter:
     def __init__(self, config: dict):
         self.config = config
         self._anthropic: Optional[anthropic.Anthropic] = None
+        self._openai_clients: dict[str, Any] = {}  # base_url -> openai.Client
         # Cost tracking: one entry per Tier
         self._cost: dict[Tier, TierCostSummary] = {
             t: TierCostSummary(tier=t) for t in Tier
@@ -99,13 +106,19 @@ class ModelRouter:
     @property
     def anthropic_client(self) -> anthropic.Anthropic:
         if self._anthropic is None:
-            api_key = os.environ.get("ANTHROPIC_API_KEY")
-            if not api_key:
-                raise RuntimeError(
-                    "ANTHROPIC_API_KEY not set — required for Tier 3 cloud escalation"
-                )
+            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
             self._anthropic = anthropic.Anthropic(api_key=api_key)
         return self._anthropic
+
+    def get_openai_client(self, base_url: str, api_key: str = "") -> Any:
+        if not OPENAI_AVAILABLE:
+            raise RuntimeError("openai package not installed")
+        if base_url not in self._openai_clients:
+            self._openai_clients[base_url] = openai.Client(
+                base_url=base_url,
+                api_key=api_key or os.environ.get("OPENAI_API_KEY", "sk-mock-key")
+            )
+        return self._openai_clients[base_url]
 
     def complete(
         self,
@@ -141,9 +154,52 @@ class ModelRouter:
         system: str,
         max_tokens: int,
     ) -> ModelResponse:
-        if tier == Tier.CLOUD:
-            return self._call_claude(prompt, system, max_tokens)
-        return self._call_ollama(tier, prompt, system, max_tokens)
+        tier_key = "tier1" if tier == Tier.LOCAL_SMALL else ("tier2" if tier == Tier.LOCAL_LARGE else "tier3")
+        cfg = self.config.get("models", {}).get(tier_key, {})
+        provider = cfg.get("provider", "ollama").lower()
+        
+        if provider == "anthropic":
+            return self._call_claude(prompt, system, max_tokens, cfg)
+        elif provider == "openai":
+            return self._call_openai(tier, prompt, system, max_tokens, cfg)
+        else:
+            return self._call_ollama(tier, prompt, system, max_tokens, cfg)
+
+    def _call_openai(
+        self,
+        tier: Tier,
+        prompt: str,
+        system: str,
+        max_tokens: int,
+        cfg: dict
+    ) -> ModelResponse:
+        if not OPENAI_AVAILABLE:
+            raise RuntimeError("openai package not installed")
+
+        model = cfg.get("model", "gpt-4o")
+        base_url = cfg.get("base_url", "http://localhost:8000/v1")
+        api_key = cfg.get("api_key", "")
+        
+        client = self.get_openai_client(base_url, api_key)
+        
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            max_tokens=cfg.get("max_tokens", max_tokens)
+        )
+
+        return ModelResponse(
+            text=response.choices[0].message.content or "",
+            tier_used=tier,
+            model=model,
+            input_tokens=response.usage.prompt_tokens if response.usage else 0,
+            output_tokens=response.usage.completion_tokens if response.usage else 0,
+        )
 
     def _call_ollama(
         self,
@@ -151,13 +207,13 @@ class ModelRouter:
         prompt: str,
         system: str,
         max_tokens: int,
+        cfg: dict
     ) -> ModelResponse:
         if not OLLAMA_AVAILABLE:
             raise RuntimeError("ollama package not installed")
 
-        tier_key = "tier1" if tier == Tier.LOCAL_SMALL else "tier2"
-        model = self.config["models"][tier_key]["model"]
-        base_url = self.config["models"][tier_key].get("base_url", "http://localhost:11434")
+        model = cfg.get("model", "qwen2.5-coder:7b")
+        base_url = cfg.get("base_url", "http://localhost:11434")
 
         messages = []
         if system:
@@ -183,9 +239,10 @@ class ModelRouter:
         prompt: str,
         system: str,
         max_tokens: int,
+        cfg: dict
     ) -> ModelResponse:
-        model_id = self.config["models"]["tier3"]["model"]
-        cfg_max = self.config["models"]["tier3"].get("max_tokens", 16000)
+        model_id = cfg.get("model", "claude-opus-4-6")
+        cfg_max = cfg.get("max_tokens", 16000)
         effective_max = min(max_tokens, cfg_max)
 
         kwargs: dict[str, Any] = dict(

@@ -111,10 +111,18 @@ class VectorStore:
         query: str,
         n_results: int = 5,
         binary_filter: Optional[str] = None,
+        tag_filter: Optional[str] = None,
     ) -> list[SimilarFunction]:
         embedding = self.embed(query)
 
-        where = {"binary": binary_filter} if binary_filter else None
+        where = {}
+        if binary_filter:
+            where["binary"] = binary_filter
+        if tag_filter:
+            where["tags"] = {"$contains": tag_filter}
+            
+        if not where:
+            where = None
 
         if self._collection is not None:
             kwargs = dict(query_embeddings=[embedding], n_results=n_results)

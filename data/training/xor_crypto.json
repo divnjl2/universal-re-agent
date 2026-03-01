@@ -1,0 +1,10 @@
+{
+  "ground_truth": {
+    "key": "0x5A",
+    "decrypted_string": "http://c2",
+    "mechanism": "XOR decryption"
+  },
+  "expected_ttp": [
+    "T1027 \u2014 Obfuscated Files or Information"
+  ]
+}

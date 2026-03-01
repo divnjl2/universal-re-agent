@@ -7,14 +7,28 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Optional
+import json
+import logging
+from dataclasses import dataclass
+from typing import Any, Optional, Dict, List
 
-import anthropic
+try:
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
 
 from .base import BaseAgent, AnalysisState
 from .static_analyst import StaticAnalystAgent
 from .dynamic_analyst import DynamicAnalystAgent
 from .code_interpreter import CodeInterpreterAgent
+from .bidirectional_analyzer import BidirectionalAnalyzer
 from ..intake.binary_profiler import BinaryProfiler
 from ..models.router import ModelRouter
 
@@ -197,13 +211,69 @@ ORCHESTRATOR_TOOLS = [
             "required": ["mode"],
         },
     },
+    {
+        "name": "bidirectional_analysis",
+        "description": (
+            "Run the static↔dynamic convergence loop (Check Point Research pattern) "
+            "for a specific function. Iterates up to 5 times until 3 consistent "
+            "findings are reached. Dynamic wins on data values; static on control flow."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "description": "Function address (hex, e.g. 0x401000)",
+                },
+                "pid": {
+                    "type": "integer",
+                    "description": "Target process PID for dynamic validation (optional)",
+                },
+            },
+            "required": ["address"],
+        },
+    },
+    {
+        "name": "generate_yara_rule",
+        "description": "Generate a YARA detection rule from accumulated IOCs and behavioral findings.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "rule_name": {
+                    "type": "string",
+                    "description": "YARA rule name (optional; auto-generated if empty)",
+                },
+                "from_iocs": {
+                    "type": "boolean",
+                    "description": "Include IOCs from state in the rule",
+                    "default": True,
+                },
+            },
+            "required": [],
+        },
+    },
 ]
+
+
+def _anthropic_tools_to_openai(anthropic_tools: list[dict]) -> list[dict]:
+    """Convert Anthropic tool schemas to OpenAI function calling format."""
+    openai_tools = []
+    for t in anthropic_tools:
+        openai_tools.append({
+            "type": "function",
+            "function": {
+                "name": t["name"],
+                "description": t["description"],
+                "parameters": t["input_schema"]
+            }
+        })
+    return openai_tools
 
 
 class OrchestratorAgent(BaseAgent):
     """
     Central orchestrator — coordinates all agents via ReAct loop.
-    Uses Claude API with tool use. Adaptive thinking on Opus 4.6.
+    Uses Claude API or OpenAI (Nexus) via ModelRouter with tool use.
     """
 
     def __init__(
@@ -218,29 +288,36 @@ class OrchestratorAgent(BaseAgent):
             state = AnalysisState()
         super().__init__("Orchestrator", config, state)
 
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY environment variable not set")
-        self.client = anthropic.Anthropic(api_key=api_key)
-        self.model = config.get("models", {}).get("tier3", {}).get(
-            "model", "claude-opus-4-6"
-        )
+        self.router = ModelRouter(config)
+        self.tier3_cfg = config.get("models", {}).get("tier3", {})
+        self.provider = self.tier3_cfg.get("provider", "anthropic").lower()
+        self.model = self.tier3_cfg.get("model", "claude-opus-4-6")
 
         # Shared dependencies
-        router = ModelRouter(config)
         from ..knowledge.vector_store import VectorStore
         vector_store = VectorStore(config)
 
         self.static_analyst = static_analyst or StaticAnalystAgent(
-            config, state, router=router, vector_store=vector_store
+            config, state, router=self.router, vector_store=vector_store
         )
         self.dynamic_analyst = dynamic_analyst or DynamicAnalystAgent(
-            config, state, router=router
+            config, state, router=self.router
         )
         self.code_interpreter = code_interpreter or CodeInterpreterAgent(
-            config, state, router=router, vector_store=vector_store
+            config, state, router=self.router, vector_store=vector_store
+        )
+        self.bidirectional = BidirectionalAnalyzer(
+            config, state,
+            static_analyst=self.static_analyst,
+            dynamic_analyst=self.dynamic_analyst,
+            router=self.router,
         )
         self._profiler = BinaryProfiler()
+        
+        # Identity and Episodic Memory
+        from ..knowledge.identity import AgentIdentity, ExperienceRAG
+        self.identity = AgentIdentity(config)
+        self.experience_rag = ExperienceRAG(config, vector_store=vector_store)
 
     # ------------------------------------------------------------------ #
     #  Main entry point                                                    #
@@ -272,52 +349,162 @@ At the end, generate a comprehensive report.
 Be methodical. Document every finding with evidence."""
 
         messages: list[dict] = [{"role": "user", "content": initial_prompt}]
+        
+        # Build dynamic system prompt
+        system_prompt = ORCHESTRATOR_SYSTEM
+        try:
+            identity_prompt = self.identity.get_identity_prompt()
+            system_prompt += f"\n--- AGENT IDENTITY ---\n{identity_prompt}\n"
+            
+            current_profile = self.state.binary_profile if isinstance(self.state.binary_profile, dict) else {}
+            episodes = self.experience_rag.recall_similar_episodes(current_profile=current_profile)
+            if episodes:
+                system_prompt += f"\n--- PAST EXPERIENCES ---\nYou have encountered similar binaries before. Keep these lessons in mind:\n"
+                system_prompt += "\n".join(episodes[:2]) + "\n"
+        except Exception as e:
+            self.log_warning(f"Could not load identity or episodic memory: {e}")
 
         # ReAct loop
         for turn in range(max_turns):
             self.log(f"Turn {turn + 1}/{max_turns}")
 
-            with self.client.messages.stream(
-                model=self.model,
-                max_tokens=8192,
-                thinking={"type": "adaptive"},
-                system=ORCHESTRATOR_SYSTEM,
-                tools=ORCHESTRATOR_TOOLS,
-                messages=messages,
-            ) as stream:
-                response = stream.get_final_message()
+            stop_reason, assistant_message, tool_calls = self._run_llm_turn(
+                system_prompt, messages
+            )
 
-            messages.append({"role": "assistant", "content": response.content})
+            messages.append(assistant_message)
 
             # Check stop condition
-            if response.stop_reason == "end_turn":
+            if stop_reason == "end_turn" or not tool_calls:
                 self.log_success("Analysis complete")
-                break
-
-            if response.stop_reason != "tool_use":
-                self.log_warning(f"Unexpected stop_reason: {response.stop_reason}")
                 break
 
             # Execute tool calls
             tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    self.log(f"  → {block.name}({json.dumps(block.input)[:80]})")
-                    result = self._execute_tool(block.name, block.input)
+            for block in tool_calls:
+                self.log(f"  → {block['name']}({json.dumps(block['input'])[:80]})")
+                result = self._execute_tool(block['name'], block['input'])
+                
+                # Format depends on provider. Let's keep it abstract in 'messages' 
+                # but format it appropriately before sending in _run_llm_turn.
+                # However, since the history is kept in 'messages', we need to store it 
+                # in the format expected by the current provider.
+                if self.provider == "anthropic":
                     tool_results.append({
                         "type": "tool_result",
-                        "tool_use_id": block.id,
+                        "tool_use_id": block['id'],
+                        "content": json.dumps(result, default=str)[:8000],
+                    })
+                else: # openai
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": block['id'],
+                        "name": block['name'],
                         "content": json.dumps(result, default=str)[:8000],
                     })
 
-            messages.append({"role": "user", "content": tool_results})
+            if self.provider == "anthropic":
+                messages.append({"role": "user", "content": tool_results})
 
         # Extract final text response
-        final_text = next(
-            (b.text for b in response.content if b.type == "text"), ""
-        )
+        final_text = ""
+        if self.provider == "anthropic":
+            if isinstance(messages[-1]["content"], list):
+                final_text = next((b.text for b in messages[-1]["content"] if b.type == "text"), "")
+            else:
+                final_text = messages[-1]["content"]
+        else:
+            final_text = messages[-1].get("content", "")
+            
         self.state.report = final_text
         return final_text
+
+    def _run_llm_turn(self, system_prompt: str, messages: list[dict]) -> tuple[str, dict, list[dict]]:
+        """Run one turn of the LLM and return (stop_reason, assistant_message, tool_calls)."""
+        
+        if self.provider == "anthropic":
+            if not ANTHROPIC_AVAILABLE:
+                raise RuntimeError("anthropic package not installed")
+                
+            client = self.router.anthropic_client
+            
+            # Using dict unpacking causes LSP issues with Anthropic's strict types, so we pass directly
+            if "opus" in self.model:
+                with client.messages.stream(
+                    model=self.model,
+                    max_tokens=8192,
+                    system=system_prompt,
+                    tools=ORCHESTRATOR_TOOLS,  # type: ignore
+                    messages=messages,         # type: ignore
+                    thinking={"type": "adaptive", "budget_tokens": 1024} # type: ignore
+                ) as stream:  # type: ignore
+                    response = stream.get_final_message()
+            else:
+                with client.messages.stream(
+                    model=self.model,
+                    max_tokens=8192,
+                    system=system_prompt,
+                    tools=ORCHESTRATOR_TOOLS,  # type: ignore
+                    messages=messages          # type: ignore
+                ) as stream:  # type: ignore
+                    response = stream.get_final_message()
+            
+            tool_calls = []
+            for block in response.content:
+                if block.type == "tool_use":
+                    tool_calls.append({
+                        "id": block.id,
+                        "name": block.name,
+                        "input": block.input
+                    })
+                    
+            stop_r = str(response.stop_reason) if response.stop_reason else "end_turn"
+            return stop_r, {"role": "assistant", "content": response.content}, tool_calls
+
+        elif self.provider == "openai":
+            if not OPENAI_AVAILABLE:
+                raise RuntimeError("openai package not installed")
+                
+            client = self.router.get_openai_client(
+                self.tier3_cfg.get("base_url", ""),
+                self.tier3_cfg.get("api_key", "")
+            )
+            
+            openai_tools = _anthropic_tools_to_openai(ORCHESTRATOR_TOOLS)
+            
+            api_messages = [{"role": "system", "content": system_prompt}] + messages
+            
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=api_messages,
+                tools=openai_tools,
+                max_tokens=self.tier3_cfg.get("max_tokens", 8192)
+            )
+            
+            msg = response.choices[0].message
+            
+            tool_calls = []
+            if msg.tool_calls:
+                for t in msg.tool_calls:
+                    tool_calls.append({
+                        "id": t.id,
+                        "name": t.function.name,
+                        "input": json.loads(t.function.arguments)
+                    })
+                    
+            # For OpenAI, the assistant message must exactly match what came back, including tool_calls
+            assistant_msg = {"role": "assistant", "content": msg.content}
+            if msg.tool_calls:
+                assistant_msg["tool_calls"] = [
+                    {"id": t.id, "type": "function", "function": {"name": t.function.name, "arguments": t.function.arguments}}
+                    for t in msg.tool_calls
+                ]
+                
+            stop_reason = "tool_use" if tool_calls else "end_turn"
+            return stop_reason, assistant_msg, tool_calls
+
+        else:
+            raise ValueError(f"Unsupported provider: {self.provider}")
 
     # ------------------------------------------------------------------ #
     #  Tool execution dispatch                                             #
@@ -430,6 +617,60 @@ Be methodical. Document every finding with evidence."""
 
         elif name == "generate_report":
             return self._generate_report(inputs.get("mode", "general"))
+
+        elif name == "bidirectional_analysis":
+            address = inputs["address"]
+            pid = inputs.get("pid")
+            # Fetch pseudocode from state if available
+            fn_data = next(
+                (f for f in self.state.functions if f.get("address") == address),
+                None,
+            )
+            pseudocode = fn_data.get("pseudocode", "") if fn_data else ""
+            if not pseudocode:
+                # Try fetching from Ghidra
+                try:
+                    fn = self.static_analyst.ghidra.decompile(address)
+                    pseudocode = fn.pseudocode
+                except Exception:
+                    pseudocode = f"// pseudocode unavailable for {address}"
+            result = self.bidirectional.analyse_with_convergence(
+                address=address,
+                pseudocode=pseudocode,
+                pid=pid,
+            )
+            return {
+                "address": result.address,
+                "converged": result.converged,
+                "iterations": result.iterations,
+                "final_conclusion": result.final_conclusion,
+                "confidence": result.confidence,
+                "escalated_to_human": result.escalated_to_human,
+            }
+
+        elif name == "generate_yara_rule":
+            from ..knowledge.feedback_processor import FeedbackProcessor
+            fp = FeedbackProcessor(self.config)
+            rule_name = inputs.get("rule_name", "")
+            include_iocs = inputs.get("from_iocs", True)
+            rule = None
+            if include_iocs and self.state.iocs:
+                rule = fp.generate_yara_from_iocs(
+                    iocs=self.state.iocs,
+                    rule_name=rule_name,
+                )
+            if not rule:
+                behavioral = [f["finding"] for f in self.state.findings if f.get("confidence", 0) >= 0.8]
+                if behavioral:
+                    binary = self.state.binary_path.split("/")[-1].split("\\")[-1]
+                    rule = fp.generate_yara_from_behavior(behavioral[:10], binary_name=binary)
+            if rule:
+                return {
+                    "rule_name": rule.rule_name,
+                    "yara_text": rule.to_yara(),
+                    "strings_count": len(rule.strings),
+                }
+            return {"error": "No IOCs or behavioral patterns available for YARA generation"}
 
         else:
             return {"error": f"Unknown tool: {name}"}
