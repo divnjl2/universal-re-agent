@@ -1,0 +1,92 @@
+{
+  "status": "ok",
+  "data": {
+    "entry_function": "FUN_1400012c4",
+    "main_logic_summary": "The entry function initializes an obfuscated function pointer table using XOR masking, then dispatches execution to a sequence of functions (beacon, noop, persist, sleep) via FUN_140001248. The program also contains exception handling, stack unwinding, and anti-analysis checks.",
+    "execution_graph": [
+      {
+        "from": "FUN_1400012c4",
+        "to": "FUN_140001248",
+        "condition": "unconditional (called 4 times with indices 0, 7, 3, 1)"
+      },
+      {
+        "from": "FUN_140001248",
+        "to": "dynamic_dispatch",
+        "condition": "index < 8"
+      },
+      {
+        "from": "FUN_140001cf4",
+        "to": "IsProcessorFeaturePresent",
+        "condition": "unconditional"
+      },
+      {
+        "from": "FUN_140001cf4",
+        "to": "RtlCaptureContext",
+        "condition": "unconditional"
+      },
+      {
+        "from": "FUN_1400028d4",
+        "to": "LoadLibraryExW",
+        "condition": "library not loaded"
+      },
+      {
+        "from": "FUN_1400028d4",
+        "to": "GetProcAddress",
+        "condition": "library loaded successfully"
+      },
+      {
+        "from": "FUN_14000789c",
+        "to": "GetModuleHandleExW",
+        "condition": "unconditional"
+      },
+      {
+        "from": "FUN_14000789c",
+        "to": "GetProcAddress",
+        "condition": "GetModuleHandleExW succeeds"
+      },
+      {
+        "from": "FUN_14000789c",
+        "to": "FreeLibrary",
+        "condition": "module handle is not null"
+      }
+    ],
+    "hidden_behaviors": [
+      {
+        "behavior": "Obfuscated dynamic dispatch",
+        "evidence": "FUN_1400012c4 XOR-masks function pointers and FUN_140001248 unmasks and calls them.",
+        "confidence": "high"
+      },
+      {
+        "behavior": "Dynamic API resolution",
+        "evidence": "FUN_1400028d4 uses LoadLibraryExW and GetProcAddress to resolve APIs dynamically.",
+        "confidence": "high"
+      }
+    ],
+    "critical_functions": [
+      "FUN_1400012c4",
+      "FUN_140001248",
+      "FUN_140001cf4",
+      "FUN_1400028d4",
+      "FUN_14000789c"
+    ],
+    "dead_code": [
+      "ram,0x00014000209f",
+      "ram,0x000140002082",
+      "ram,0x000140002051",
+      "ram,0x000140001fb8",
+      "ram,0x000140001f95"
+    ],
+    "anti_analysis_triggers": [
+      "IsDebuggerPresent (in FUN_140001cf4)",
+      "GetTickCount (in FUN_140001248, potentially for timing checks)",
+      "CPUID checks (in FUN_140001f7c, checking for 'GenuineIntel')"
+    ],
+    "flow_confidence": "medium"
+  },
+  "elapsed_s": 20.875,
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0
+  }
+}

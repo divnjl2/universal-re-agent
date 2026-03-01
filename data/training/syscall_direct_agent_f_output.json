@@ -1,0 +1,571 @@
+{
+  "status": "ok",
+  "data": {
+    "function_map": {
+      "FUN_140003674": {
+        "name": "FUN_140003674",
+        "purpose": "Exception handling or security cookie check wrapper.",
+        "category": "dispatch",
+        "confidence": 0.8,
+        "key_evidence": "Replaced with injection: security_check_cookie, takes EHExceptionRecord and _CONTEXT."
+      },
+      "FUN_140003ef4": {
+        "name": "FUN_140003ef4",
+        "purpose": "Exception handling context validation.",
+        "category": "dispatch",
+        "confidence": 0.8,
+        "key_evidence": "Calls __except_validate_context_record, takes EHExceptionRecord and _CONTEXT."
+      },
+      "FUN_140004cd0": {
+        "name": "FUN_140004cd0",
+        "purpose": "String or buffer manipulation, possibly related to CRT initialization or error handling.",
+        "category": "utility",
+        "confidence": 0.5,
+        "key_evidence": "Checks for null pointer, uses __acrt_ptd."
+      },
+      "FUN_140004f84": {
+        "name": "FUN_140004f84",
+        "purpose": "State machine or switch-like processing based on an integer field.",
+        "category": "unknown",
+        "confidence": 0.4,
+        "key_evidence": "Checks integer at offset 0x34 against 0, 1, 5, 6."
+      },
+      "FUN_140005188": {
+        "name": "FUN_140005188",
+        "purpose": "State machine or switch-like processing based on an integer field.",
+        "category": "unknown",
+        "confidence": 0.4,
+        "key_evidence": "Checks integer at offset 0x34 against 0, 1, 5, 6. Similar to FUN_140004f84."
+      },
+      "FUN_14000538c": {
+        "name": "FUN_14000538c",
+        "purpose": "State machine or switch-like processing based on an integer field.",
+        "category": "unknown",
+        "confidence": 0.4,
+        "key_evidence": "Checks integer at offset 0x34 against 0, 1, 5, 6. Similar to FUN_140004f84."
+      },
+      "FUN_140005b58": {
+        "name": "FUN_140005b58",
+        "purpose": "I/O stream processing or error handling.",
+        "category": "utility",
+        "confidence": 0.6,
+        "key_evidence": "Checks _iobuf pointer, sets error codes."
+      },
+      "FUN_140006078": {
+        "name": "FUN_140006078",
+        "purpose": "Security cookie check wrapper.",
+        "category": "utility",
+        "confidence": 0.8,
+        "key_evidence": "Replaced with injection: security_check_cookie."
+      },
+      "FUN_14000652c": {
+        "name": "FUN_14000652c",
+        "purpose": "Bitwise flag manipulation and buffer processing.",
+        "category": "utility",
+        "confidence": 0.5,
+        "key_evidence": "Sets bitwise flag (param_1[5] | 0x10), uses rsize_t."
+      },
+      "FUN_140006ed4": {
+        "name": "FUN_140006ed4",
+        "purpose": "Command line or string parsing, handling quotes.",
+        "category": "utility",
+        "confidence": 0.8,
+        "key_evidence": "Checks for '\"' character, toggles boolean state, advances pointer."
+      },
+      "FUN_140007c20": {
+        "name": "FUN_140007c20",
+        "purpose": "Performs bitwise operations and pointer arithmetic, possibly for decoding or memory manipulation.",
+        "category": "utility",
+        "confidence": 0.4,
+        "key_evidence": "Bitwise XOR and shift operations with global variables."
+      },
+      "FUN_140008bf4": {
+        "name": "FUN_140008bf4",
+        "purpose": "Initializes a critical section, falling back to InitializeCriticalSectionAndSpinCount if InitializeCriticalSectionEx is unavailable.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Calls InitializeCriticalSectionAndSpinCount and dynamically resolves InitializeCriticalSectionEx."
+      },
+      "FUN_140005ef0": {
+        "name": "FUN_140005ef0",
+        "purpose": "Parses or processes a structure based on specific character flags (e.g., 'F').",
+        "category": "utility",
+        "confidence": 0.5,
+        "key_evidence": "Checks for character 'F' and modifies structure fields."
+      },
+      "FUN_140006cb4": {
+        "name": "FUN_140006cb4",
+        "purpose": "Searches for a specific integer value within an array or structure retrieved from a thread-local or global context.",
+        "category": "utility",
+        "confidence": 0.6,
+        "key_evidence": "Iterates over an array of integers looking for param_1."
+      },
+      "FUN_140004998": {
+        "name": "FUN_140004998",
+        "purpose": "Handles exceptions or unwinding by retrieving the file header for a given program counter.",
+        "category": "utility",
+        "confidence": 0.8,
+        "key_evidence": "Calls RtlPcToFileHeader and RaiseException."
+      },
+      "FUN_140002f60": {
+        "name": "FUN_140002f60",
+        "purpose": "Handles stack unwinding or exception dispatching, likely related to security checks.",
+        "category": "utility",
+        "confidence": 0.8,
+        "key_evidence": "Calls RtlUnwindEx and has a warning about security_check_cookie."
+      },
+      "FUN_14000690c": {
+        "name": "FUN_14000690c",
+        "purpose": "Extracts and processes a wide string pointer from a variable argument list or structure.",
+        "category": "utility",
+        "confidence": 0.7,
+        "key_evidence": "Advances a pointer, extracts a wchar_t*, and handles a '(null)' string fallback."
+      },
+      "FUN_140007894": {
+        "name": "FUN_140007894",
+        "purpose": "Terminates the current process and exits.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Calls GetCurrentProcess, TerminateProcess, and ExitProcess."
+      },
+      "FUN_1400064b0": {
+        "name": "FUN_1400064b0",
+        "purpose": "Extracts and processes a string or structure pointer, handling null cases.",
+        "category": "utility",
+        "confidence": 0.7,
+        "key_evidence": "Advances a pointer, checks for null, and assigns '(null)' string."
+      },
+      "FUN_140001788": {
+        "name": "FUN_140001788",
+        "purpose": "Checks for a specific processor feature and potentially triggers a software interrupt (fast fail).",
+        "category": "utility",
+        "confidence": 0.8,
+        "key_evidence": "Calls IsProcessorFeaturePresent(0x17) and executes swi(0x29)."
+      },
+      "FUN_140002d5c": {
+        "name": "FUN_140002d5c",
+        "purpose": "Looks up function entries, likely part of exception handling or stack unwinding.",
+        "category": "utility",
+        "confidence": 0.7,
+        "key_evidence": "Calls RtlLookupFunctionEntry, uses PRUNTIME_FUNCTION."
+      },
+      "FUN_1400082fc": {
+        "name": "FUN_1400082fc",
+        "purpose": "Retrieves and sets thread-local storage or error state, likely related to CRT initialization.",
+        "category": "utility",
+        "confidence": 0.8,
+        "key_evidence": "Calls GetLastError, SetLastError, uses __acrt_ptd."
+      },
+      "FUN_140002e2c": {
+        "name": "FUN_140002e2c",
+        "purpose": "Performs stack unwinding or exception handling operations.",
+        "category": "utility",
+        "confidence": 0.5,
+        "key_evidence": "Similar structure to FUN_140002d5c, uses offsets like +0xc."
+      },
+      "FUN_140005a60": {
+        "name": "FUN_140005a60",
+        "purpose": "Manages thread-local storage or error state, similar to FUN_1400082fc.",
+        "category": "utility",
+        "confidence": 0.8,
+        "key_evidence": "Calls GetLastError, SetLastError, uses __acrt_ptd."
+      },
+      "FUN_1400077cc": {
+        "name": "FUN_1400077cc",
+        "purpose": "Retrieves a module handle, likely for dynamic API resolution or resource loading.",
+        "category": "utility",
+        "confidence": 0.7,
+        "key_evidence": "Calls GetModuleHandleW."
+      },
+      "FUN_140008d50": {
+        "name": "FUN_140008d50",
+        "purpose": "Dynamically resolves and calls LocaleNameToLCID.",
+        "category": "dispatch",
+        "confidence": 0.9,
+        "key_evidence": "String reference 'LocaleNameToLCID', uses CFG dispatch PTR__guard_dispatch_icall."
+      },
+      "FUN_140006b90": {
+        "name": "FUN_140006b90",
+        "purpose": "Unknown utility function, possibly related to string or buffer manipulation.",
+        "category": "unknown",
+        "confidence": 0.3,
+        "key_evidence": "Generic parameters and local variables, no clear API calls."
+      },
+      "FUN_140007dd0": {
+        "name": "FUN_140007dd0",
+        "purpose": "Performs bitwise operations or state management, possibly related to initialization.",
+        "category": "utility",
+        "confidence": 0.4,
+        "key_evidence": "Bitwise AND with 0x3f, checks for null pointers."
+      },
+      "FUN_140008a4c": {
+        "name": "FUN_140008a4c",
+        "purpose": "Dynamically resolves AppPolicyGetProcessTerminationMethod.",
+        "category": "dispatch",
+        "confidence": 0.9,
+        "key_evidence": "String reference 'AppPolicyGetProcessTerminationMethod', returns NTSTATUS-like error 0xc000022."
+      },
+      "FUN_1400058d4": {
+        "name": "FUN_1400058d4",
+        "purpose": "Performs security cookie checks, likely part of compiler-generated stack protection.",
+        "category": "utility",
+        "confidence": 0.8,
+        "key_evidence": "Warning mentions __security_check_cookie."
+      },
+      "FUN_140008368": {
+        "name": "FUN_140008368",
+        "purpose": "Retrieves an element from an array or structure, preserving the last error code if a specific condition is met.",
+        "category": "utility",
+        "confidence": 0.6,
+        "key_evidence": "Calls GetLastError and SetLastError around a state modification, calculates an offset with param_1 + lVar1 * 8."
+      },
+      "FUN_1400072f8": {
+        "name": "FUN_1400072f8",
+        "purpose": "Parses a string, likely environment variables or command line arguments, splitting by '='.",
+        "category": "utility",
+        "confidence": 0.7,
+        "key_evidence": "Iterates over a string, checks for '=' character, calculates lengths."
+      },
+      "FUN_140008aa4": {
+        "name": "FUN_140008aa4",
+        "purpose": "Dynamically resolves and calls the AreFileApisANSI API.",
+        "category": "dispatch",
+        "confidence": 0.9,
+        "key_evidence": "String reference 'AreFileApisANSI', dynamic resolution pattern."
+      },
+      "FUN_140008854": {
+        "name": "FUN_140008854",
+        "purpose": "Frees heap memory and updates the CRT errno if the free operation fails.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Calls HeapFree, GetLastError, __acrt_errno_from_os_error."
+      },
+      "FUN_140001870": {
+        "name": "FUN_140001870",
+        "purpose": "Checks for a processor feature (Fastfail) and triggers a software interrupt if present.",
+        "category": "utility",
+        "confidence": 0.8,
+        "key_evidence": "Calls IsProcessorFeaturePresent(0x17), executes swi(0x29) which is __fastfail."
+      },
+      "FUN_140007a1c": {
+        "name": "FUN_140007a1c",
+        "purpose": "Initializes global variables with the ANSI and Unicode command line strings.",
+        "category": "utility",
+        "confidence": 1.0,
+        "key_evidence": "Calls GetCommandLineA and GetCommandLineW, stores results in globals."
+      },
+      "FUN_1400046b0": {
+        "name": "FUN_1400046b0",
+        "purpose": "Processes C++ exception throw information.",
+        "category": "utility",
+        "confidence": 0.7,
+        "key_evidence": "References _s_ThrowInfo, _GetThrowImageBase, iterates over exception structures."
+      },
+      "FUN_140004170": {
+        "name": "FUN_140004170",
+        "purpose": "Constructs a std::bad_exception object.",
+        "category": "utility",
+        "confidence": 1.0,
+        "key_evidence": "Assigns 'bad exception' string and std::bad_exception::vftable."
+      },
+      "FUN_14000744c": {
+        "name": "FUN_14000744c",
+        "purpose": "Iterates over an array of pointers, calculates sizes, and allocates memory using calloc.",
+        "category": "utility",
+        "confidence": 0.6,
+        "key_evidence": "Loop over DAT_140022360, calls _calloc_base."
+      },
+      "FUN_140004844": {
+        "name": "FUN_140004844",
+        "purpose": "Retrieves the exception message string, defaulting to 'Unknown exception'.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Returns 'Unknown exception' or a string pointer from the passed structure."
+      },
+      "FUN_140006780": {
+        "name": "FUN_140006780",
+        "purpose": "Checks state variables or flags, possibly related to control flow or state machine.",
+        "category": "unknown",
+        "confidence": 0.3,
+        "key_evidence": "Checks param_1 + 0x34 against multiple constants (2, 3, 0xc, 0xd)."
+      },
+      "FUN_140006ac4": {
+        "name": "FUN_140006ac4",
+        "purpose": "Iterates over a buffer and processes it, possibly decoding or hashing.",
+        "category": "crypto",
+        "confidence": 0.4,
+        "key_evidence": "Loop over param_2 up to param_3, bitwise operations, calls FUN_14000aa90."
+      },
+      "FUN_1400085b4": {
+        "name": "FUN_1400085b4",
+        "purpose": "CRT initialization or thread-local storage setup.",
+        "category": "utility",
+        "confidence": 0.6,
+        "key_evidence": "Calls __acrt_ptd related functions, XORs with DAT_140021000 (security cookie)."
+      },
+      "FUN_140001008": {
+        "name": "FUN_140001008",
+        "purpose": "Allocates executable memory and copies a stub or shellcode into it.",
+        "category": "injection",
+        "confidence": 0.8,
+        "key_evidence": "VirtualAlloc with PAGE_EXECUTE_READWRITE (0x40), copies data, sets a byte."
+      },
+      "FUN_140007700": {
+        "name": "FUN_140007700",
+        "purpose": "Thread-safe initialization or dispatch routine.",
+        "category": "dispatch",
+        "confidence": 0.5,
+        "key_evidence": "LOCK/UNLOCK, checks guard_dispatch_icall, sets initialization flags."
+      },
+      "FUN_1400081d4": {
+        "name": "FUN_1400081d4",
+        "purpose": "Handles fatal errors or abort signals, invoking fastfail if supported.",
+        "category": "utility",
+        "confidence": 0.8,
+        "key_evidence": "Calls __acrt_get_sigabrt_handler, IsProcessorFeaturePresent(0x17) (PF_FASTFAIL_AVAILABLE), swi(0x29) (int 0x29 fastfail)."
+      },
+      "FUN_1400014e0": {
+        "name": "FUN_1400014e0",
+        "purpose": "C runtime initialization, setting up exit tables and file modes.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Calls _set_fmode, __scrt_initialize_onexit_tables, atexit."
+      },
+      "FUN_140006854": {
+        "name": "FUN_140006854",
+        "purpose": "Advances a pointer array and checks state, possibly part of a state machine or interpreter.",
+        "category": "unknown",
+        "confidence": 0.4,
+        "key_evidence": "Increments pointer at param_1 + 0x18, checks param_1 + 0x34 against constants."
+      },
+      "FUN_140001ea4": {
+        "name": "FUN_140001ea4",
+        "purpose": "Parses the PE header of the current module to find specific directories or validate the image.",
+        "category": "utility",
+        "confidence": 0.8,
+        "key_evidence": "GetModuleHandleW(0), checks MZ (0x5a4d) and PE (0x4550) signatures, checks optional header magic (0x20b)."
+      },
+      "FUN_1400057a0": {
+        "name": "FUN_1400057a0",
+        "purpose": "String or buffer manipulation, possibly formatting or appending data.",
+        "category": "utility",
+        "confidence": 0.4,
+        "key_evidence": "Calculates buffer end pointer, loops while condition is met, manipulates char pointers."
+      },
+      "FUN_140007284": {
+        "name": "FUN_140007284",
+        "purpose": "Initializes multibyte character support and allocates/initializes related structures.",
+        "category": "utility",
+        "confidence": 0.8,
+        "key_evidence": "Calls __acrt_initialize_multibyte() and handles initialization failure."
+      },
+      "FUN_140005590": {
+        "name": "FUN_140005590",
+        "purpose": "Manipulates a buffer or string, possibly formatting or shifting data based on size and offset.",
+        "category": "utility",
+        "confidence": 0.5,
+        "key_evidence": "Pointer arithmetic, bitwise shifts, and loops over a buffer."
+      },
+      "FUN_140005730": {
+        "name": "FUN_140005730",
+        "purpose": "Manipulates a buffer or string, similar to FUN_140005590.",
+        "category": "utility",
+        "confidence": 0.5,
+        "key_evidence": "Identical structure to FUN_140005590, pointer arithmetic and bitwise shifts."
+      },
+      "FUN_1400059f0": {
+        "name": "FUN_1400059f0",
+        "purpose": "Parses or searches through a string for specific characters or patterns.",
+        "category": "utility",
+        "confidence": 0.7,
+        "key_evidence": "Loops checking for '\\0' and specific character matches, pointer increments."
+      },
+      "FUN_14000260c": {
+        "name": "FUN_14000260c",
+        "purpose": "Handles specific exception or error codes, possibly related to structured exception handling (SEH).",
+        "category": "dispatch",
+        "confidence": 0.6,
+        "key_evidence": "Checks against specific magic numbers/constants (e.g., -0x1fbcbcae, -0x1f928c9d) and updates state."
+      },
+      "FUN_140003278": {
+        "name": "FUN_140003278",
+        "purpose": "Searches or iterates through an array of offsets or structures, possibly for exception handling or RTTI.",
+        "category": "utility",
+        "confidence": 0.5,
+        "key_evidence": "Iterates over an array using an index, comparing values against a parameter."
+      },
+      "FUN_140002c68": {
+        "name": "FUN_140002c68",
+        "purpose": "Searches for a specific entry in a table based on a value range.",
+        "category": "utility",
+        "confidence": 0.6,
+        "key_evidence": "Loops backwards through an array, checking if param_2 falls within a range defined by struct fields."
+      },
+      "FUN_140008084": {
+        "name": "FUN_140008084",
+        "purpose": "Frees multiple global memory allocations and clears their pointers.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Repeatedly calls a free-like function (FUN_140008854) on global variables and sets them to 0."
+      },
+      "FUN_140001f08": {
+        "name": "FUN_140001f08",
+        "purpose": "Handles a specific exception or critical error, saving state before terminating or jumping.",
+        "category": "dispatch",
+        "confidence": 0.6,
+        "key_evidence": "Checks magic number -0x1f928c9d, saves pointers, and has a 'Subroutine does not return' warning."
+      },
+      "FUN_1400030a0": {
+        "name": "FUN_1400030a0",
+        "purpose": "Removes an element from a linked list.",
+        "category": "utility",
+        "confidence": 0.8,
+        "key_evidence": "Traverses a linked list (lVar2 = *(longlong *)(lVar2 + 8)) and updates the head pointer if a match is found."
+      },
+      "FUN_140001d3c": {
+        "name": "FUN_140001d3c",
+        "purpose": "Returns a pointer to a global variable.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Returns address of DAT_140022ca8"
+      },
+      "FUN_140001d44": {
+        "name": "FUN_140001d44",
+        "purpose": "Returns a pointer to a global variable.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Returns address of DAT_140022ca0"
+      },
+      "FUN_140001d4c": {
+        "name": "FUN_140001d4c",
+        "purpose": "Initializes or clears a global variable to zero.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Sets _DAT_1400220b8 to 0"
+      },
+      "FUN_140003270": {
+        "name": "FUN_140003270",
+        "purpose": "Acts as a wrapper or dispatcher to another function, passing along dereferenced arguments.",
+        "category": "dispatch",
+        "confidence": 0.8,
+        "key_evidence": "Calls FUN_140003278 with param_1, param_2, and *param_2"
+      },
+      "FUN_140006e68": {
+        "name": "FUN_140006e68",
+        "purpose": "Sets a global variable to the provided argument.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Assigns param_1 to DAT_140022248"
+      },
+      "FUN_14000795c": {
+        "name": "FUN_14000795c",
+        "purpose": "Sets a global variable to the provided argument.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Assigns param_1 to DAT_140022380"
+      },
+      "FUN_140007a44": {
+        "name": "FUN_140007a44",
+        "purpose": "Returns a pointer to a global variable.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Returns address of DAT_140022398"
+      },
+      "FUN_140007a4c": {
+        "name": "FUN_140007a4c",
+        "purpose": "Returns a pointer to a global variable.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Returns address of DAT_1400223a0"
+      },
+      "FUN_140007b6c": {
+        "name": "FUN_140007b6c",
+        "purpose": "Returns the value of a global variable.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Returns DAT_1400223c4"
+      },
+      "FUN_140007ba0": {
+        "name": "FUN_140007ba0",
+        "purpose": "Returns a pointer to a global variable.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Returns address of DAT_1400223c8"
+      },
+      "FUN_140008510": {
+        "name": "FUN_140008510",
+        "purpose": "Sets a global variable to the provided argument.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Assigns param_1 to _DAT_140022400"
+      },
+      "FUN_140006e38": {
+        "name": "FUN_140006e38",
+        "purpose": "Retrieves the value of a global variable.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Returns DAT_140022244"
+      },
+      "FUN_140006e40": {
+        "name": "FUN_140006e40",
+        "purpose": "Sets a global variable to the provided argument.",
+        "category": "utility",
+        "confidence": 0.9,
+        "key_evidence": "Assigns param_1 to DAT_140022244"
+      },
+      "FUN_140001ce4": {
+        "name": "FUN_140001ce4",
+        "purpose": "Returns a constant value of 1.",
+        "category": "utility",
+        "confidence": 1.0,
+        "key_evidence": "return 1;"
+      },
+      "FUN_140001cec": {
+        "name": "FUN_140001cec",
+        "purpose": "Returns a constant value of 0x4000.",
+        "category": "utility",
+        "confidence": 1.0,
+        "key_evidence": "return 0x4000;"
+      },
+      "FUN_140001ce0": {
+        "name": "FUN_140001ce0",
+        "purpose": "Returns a constant value of 0.",
+        "category": "utility",
+        "confidence": 1.0,
+        "key_evidence": "return 0;"
+      },
+      "FUN_140001d04": {
+        "name": "FUN_140001d04",
+        "purpose": "Returns a constant byte value of 1.",
+        "category": "utility",
+        "confidence": 1.0,
+        "key_evidence": "return 1;"
+      },
+      "FUN_1400025b4": {
+        "name": "FUN_1400025b4",
+        "purpose": "Acts as a dispatch or thunk function by executing an indirect jump.",
+        "category": "dispatch",
+        "confidence": 0.8,
+        "key_evidence": "Indirect call to UNRECOVERED_JUMPTABLE"
+      },
+      "FUN_140002700": {
+        "name": "FUN_140002700",
+        "purpose": "Empty stub function that does nothing.",
+        "category": "utility",
+        "confidence": 1.0,
+        "key_evidence": "Only contains a return statement"
+      },
+      "FUN_140002710": {
+        "name": "FUN_140002710",
+        "purpose": "Empty stub function that does nothing.",
+        "category": "utility",
+        "confidence": 1.0,
+        "key_evidence": "Only contains a return statement"
+      }
+    },
+    "batch_errors": 1,
+    "total_functions": 80
+  },
+  "elapsed_s": 142.15700000000652,
+  "usage": {}
+}

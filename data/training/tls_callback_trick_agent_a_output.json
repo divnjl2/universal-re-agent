@@ -1,0 +1,37 @@
+{
+  "status": "ok",
+  "data": {
+    "binary_category": "Malware/Malware-Sample (Evasive Loader)",
+    "architecture": "x86_64",
+    "compiler": "Microsoft Visual C++ (MSVC)",
+    "protection_level": "Moderate",
+    "protection_mechanisms": [
+      "TLS Callbacks",
+      "Anti-Debugging (IsDebuggerPresent)",
+      "Environment Detection",
+      "String Encryption/Obfuscation",
+      "Integrity Checks (CRC32)",
+      "Control Flow Obfuscation"
+    ],
+    "language_indicators": [
+      "C++",
+      "MSVC Runtime Library",
+      "Windows API"
+    ],
+    "notable_imports": [
+      "IsDebuggerPresent",
+      "RtlCaptureContext",
+      "RtlUnwindEx",
+      "QueryPerformanceCounter",
+      "InitializeSListHead"
+    ],
+    "structural_confidence": 0.95,
+    "rationale": "The binary exhibits classic evasive behavior through the use of TLS callbacks (indicated by strings like '[TLS-0]' and '[TLS-1]') to execute code before the main entry point. It explicitly checks for analysis environments and debuggers. The presence of CRC32 integrity checks and decrypted configuration strings suggests a payload delivery or protection mechanism. The import table and string samples (e.g., __cdecl, __stdcall, and SEH-related functions like RtlVirtualUnwind) are characteristic of a 64-bit MSVC-compiled Windows executable."
+  },
+  "elapsed_s": 12.40700000000652,
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0
+  }
+}

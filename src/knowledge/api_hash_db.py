@@ -50,6 +50,15 @@ def _sdbm(name: str) -> int:
     return h
 
 
+def _fnv1a(name: str) -> int:
+    """FNV-1a 32-bit hash — used by api_hash.c target and common malware."""
+    h = 0x811c9dc5  # FNV offset basis
+    for ch in name.encode("ascii"):
+        h ^= ch
+        h = (h * 0x01000193) & 0xFFFFFFFF  # FNV prime
+    return h
+
+
 # ---------------------------------------------------------------------------
 # API name list (~50 common Win32 APIs relevant to malware RE)
 # ---------------------------------------------------------------------------
@@ -106,10 +115,11 @@ class ApiHashDB:
     """
 
     _ALGORITHMS = {
-        "crc32": _crc32,
-        "djb2":  _djb2,
-        "ror13": _ror13,
-        "sdbm":  _sdbm,
+        "crc32":  _crc32,
+        "djb2":   _djb2,
+        "ror13":  _ror13,
+        "sdbm":   _sdbm,
+        "fnv1a":  _fnv1a,
     }
 
     def __init__(self, extra_apis: Optional[list[str]] = None):

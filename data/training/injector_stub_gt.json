@@ -1,0 +1,4 @@
+{
+  "defines": {},
+  "stdout": "=== Injector Stub ===\r\nTargeting: notepad.exe\r\nProcess 'notepad.exe' not found. Injection skipped.\r\n(Start notepad.exe to test injection)\r\n"
+}

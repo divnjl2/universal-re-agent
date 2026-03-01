@@ -1,0 +1,93 @@
+{
+  "status": "ok",
+  "data": {
+    "algorithms_detected": [
+      {
+        "algorithm": "XOR",
+        "confidence": "High",
+        "evidence": "Multiple data blobs successfully decoded with single-byte XOR keys (0x20, 0x40, 0x81).",
+        "key_candidates": [
+          "0x20",
+          "0x40",
+          "0x81"
+        ],
+        "decrypted_content": [
+          "'('('('(",
+          "&\"@!P9>(",
+          "XrT YmMu_4T",
+          "H2D0C Bp",
+          "~~~~~~~~",
+          "00000000000000000000000000",
+          "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"########"
+        ]
+      },
+      {
+        "algorithm": "RC4 or Custom Stream Cipher",
+        "confidence": "Medium",
+        "evidence": "Presence of multiple small, high-entropy raw data blobs (10B to 30B) typical of encrypted string tables.",
+        "key_candidates": [],
+        "decrypted_content": []
+      }
+    ],
+    "xor_results": [
+      {
+        "address": "140017626",
+        "key": "0x20",
+        "decoded": "'('('('("
+      },
+      {
+        "address": "14001f22f",
+        "key": "0x20",
+        "decoded": "&\"@!P9>("
+      },
+      {
+        "address": "14001faf4",
+        "key": "0x40",
+        "decoded": "XrT YmMu_4T"
+      },
+      {
+        "address": "14002003c",
+        "key": "0x40",
+        "decoded": "H2D0C Bp"
+      },
+      {
+        "address": "140021228",
+        "key": "0x81",
+        "decoded": "~~~~~~~~"
+      },
+      {
+        "address": "14002141a",
+        "key": "0x20",
+        "decoded": "00000000000000000000000000"
+      },
+      {
+        "address": "140021632",
+        "key": "0x20",
+        "decoded": "00000000000000000000000000"
+      },
+      {
+        "address": "140021a70",
+        "key": "0x20",
+        "decoded": "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"########"
+      }
+    ],
+    "hash_resolutions": [],
+    "obfuscation_techniques": [
+      "Single-byte XOR obfuscation",
+      "Encrypted string table (suspected)"
+    ],
+    "crypto_confidence": "Medium",
+    "keys_found": [
+      "0x20",
+      "0x40",
+      "0x81"
+    ],
+    "decrypted_iocs": []
+  },
+  "elapsed_s": 25.01600000000326,
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0
+  }
+}

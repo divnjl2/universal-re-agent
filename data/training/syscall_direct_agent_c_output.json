@@ -1,0 +1,62 @@
+{
+  "status": "ok",
+  "data": {
+    "entry_function": "FUN_14000106c",
+    "main_logic_summary": "The binary executes a direct syscall demonstration (allocating and freeing virtual memory) using obfuscated System Service Numbers (SSNs). It employs dynamic API resolution to hide imports, uses structured exception handling for control flow or anti-debugging, and checks CPUID for 'GenuineIntel' to evade analysis environments.",
+    "execution_graph": [
+      {
+        "from": "FUN_140008ae8",
+        "to": "FUN_140008890",
+        "condition": "Always (attempts to dynamically resolve CompareStringEx)"
+      },
+      {
+        "from": "FUN_140008c64",
+        "to": "FUN_140008890",
+        "condition": "Always (attempts to dynamically resolve LCMapStringEx)"
+      },
+      {
+        "from": "FUN_140001d54",
+        "to": "IsDebuggerPresent",
+        "condition": "Exception/Context capture flow"
+      },
+      {
+        "from": "FUN_140001d54",
+        "to": "RtlCaptureContext",
+        "condition": "IsProcessorFeaturePresent(0x17) check passes"
+      }
+    ],
+    "hidden_behaviors": [
+      {
+        "behavior": "Dynamic API Resolution with Obfuscation",
+        "evidence": "FUN_140008890 and FUN_140002934 decrypt function pointers using bitwise shifts and XOR with DAT_140021000 before calling LoadLibraryExW and GetProcAddress.",
+        "confidence": "High"
+      },
+      {
+        "behavior": "Direct Syscalls / EDR Evasion",
+        "evidence": "FUN_14000106c prints strings detailing obfuscated SSNs for NtAllocateVirtualMemory and NtFreeVirtualMemory.",
+        "confidence": "High"
+      }
+    ],
+    "critical_functions": [
+      "FUN_14000106c",
+      "FUN_140008890",
+      "FUN_140002934",
+      "FUN_140001d54",
+      "FUN_140001fdc"
+    ],
+    "dead_code": [
+      "Unreachable blocks in FUN_140001fdc (ram,0x0001400020ff, ram,0x0001400020e2, ram,0x0001400020b1, ram,0x000140002018, ram,0x000140001ff5)"
+    ],
+    "anti_analysis_triggers": [
+      "CPUID check for 'GenuineIntel' in FUN_140001fdc to detect virtualized or non-standard environments.",
+      "IsDebuggerPresent and RtlCaptureContext usage in FUN_140001d54 to detect and alter behavior under a debugger."
+    ],
+    "flow_confidence": 0.85
+  },
+  "elapsed_s": 34.0,
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0
+  }
+}

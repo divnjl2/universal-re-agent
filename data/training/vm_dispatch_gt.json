@@ -1,0 +1,15 @@
+{
+  "defines": {
+    "VM_STACK_SIZE": "64",
+    "VM_REG_COUNT": "8",
+    "OP_PUSH": "0x01",
+    "OP_POP": "0x02",
+    "OP_ADD": "0x03",
+    "OP_XOR": "0x04",
+    "OP_MOV": "0x05",
+    "OP_MUL": "0x06",
+    "OP_OUT": "0x07",
+    "OP_HALT": "0xFF"
+  },
+  "stdout": "VM starting. Bytecode size: 24 bytes\r\nVM OUT r0 = 0x1B (27)\r\nVM halted after 10 steps.\r\n"
+}

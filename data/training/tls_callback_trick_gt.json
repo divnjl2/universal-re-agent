@@ -1,0 +1,6 @@
+{
+  "defines": {
+    "INTEGRITY_STRING": "NEXUS2026"
+  },
+  "stdout": "=== TLS Callback Trick Demo ===\r\n[main] Config loaded: cb-1,0omj`C4-5n0\u00106\u0003cr\u0015[EQR@WQe24Tl0`Men53vC -2n2\r\n[main] Environment clean.\r\n[main] Integrity check: failed (expected in demo)\r\n[main] Done.\r\n"
+}

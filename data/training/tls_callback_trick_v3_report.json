@@ -1,0 +1,97 @@
+{
+  "summary": "The analyzed binary is a sophisticated 64-bit Windows Evasive Loader, identified as part of the 'NEXUS2026' campaign. It employs multi-stage anti-analysis techniques, primarily utilizing TLS callbacks to execute environment checks and configuration decryption before the main entry point. The malware features dynamic API resolution to mask its imports, single-byte XOR obfuscation for string protection, and CPUID-based virtualization detection. Its primary purpose is to serve as a stealthy delivery mechanism for subsequent payloads while evading sandboxes and debuggers.",
+  "category": "Evasive Downloader / Loader",
+  "confidence": 0.95,
+  "mechanism": "Execution of anti-debugging and environment validation logic via TLS Callbacks (FUN_140001000) prior to the main entry point. It uses dynamic resolution (LoadLibraryExW/GetProcAddress) to obfuscate functional calls and employs CPUID vendor string checks to detect virtualized environments.",
+  "secret_value": "NEXUS2026",
+  "key_artifacts": [
+    "TLS Callbacks ([TLS-0], [TLS-1])",
+    "CPUID 'GenuineIntel' check",
+    "Single-byte XOR keys: 0x20, 0x40, 0x81",
+    "Dynamic API resolution stubs (FUN_1400084c0, FUN_140002494)"
+  ],
+  "iocs": [
+    {
+      "type": "campaign_id",
+      "value": "NEXUS2026"
+    },
+    {
+      "type": "string_marker",
+      "value": "NEXUS202ANALYSIS ENVIRONMENT DETECTED"
+    },
+    {
+      "type": "mutex",
+      "value": null
+    }
+  ],
+  "mitre_ttps": [
+    {
+      "technique_id": "T1497.001",
+      "technique_name": "Virtualization/Sandbox Evasion: System Checks",
+      "evidence": "CPUID check for 'GenuineIntel' and 'ANALYSIS ENVIRONMENT DETECTED' strings."
+    },
+    {
+      "technique_id": "T1622",
+      "technique_name": "Debugger Evasion",
+      "evidence": "IsDebuggerPresent and TLS callback-based anti-debug checks."
+    },
+    {
+      "technique_id": "T1055",
+      "technique_name": "Process Injection",
+      "evidence": "TLS Callback Trick Demo strings indicating execution redirection."
+    },
+    {
+      "technique_id": "T1140",
+      "technique_name": "Deobfuscate/Decode Files or Information",
+      "evidence": "XOR-based string decryption and '[TLS-1] Config decrypted' log."
+    },
+    {
+      "technique_id": "T1106",
+      "technique_name": "Native API",
+      "evidence": "Dynamic resolution of Windows APIs via GetProcAddress/LoadLibraryExW."
+    }
+  ],
+  "conflict_notes": [
+    "Category Conflict: Resolved to 'Evasive Downloader / Loader' per Agent D's TTP evidence over Agent A's structural guess.",
+    "Crypto Conflict: Agent B's detected XOR keys (0x20, 0x40, 0x81) are accepted as ground truth over Agent E's empty IOC report.",
+    "Behavioral Conflict: Derived TTP T1106 (Native API) from Agent C's code flow analysis of dynamic resolution, overriding Agent D's initial lack of mapped TTPs for that specific behavior."
+  ],
+  "missing_agents": [],
+  "findings": [
+    {
+      "finding": "Pre-entry point execution via TLS Callbacks",
+      "evidence": "FUN_140001000 executes before FUN_1400011f4, performing IsDebuggerPresent checks.",
+      "source_agents": [
+        "Agent A",
+        "Agent C"
+      ],
+      "confidence": 0.95
+    },
+    {
+      "finding": "Multi-key XOR Obfuscation",
+      "evidence": "Successful decryption of strings at 140017626 and 14001faf4 using keys 0x20 and 0x40.",
+      "source_agents": [
+        "Agent B"
+      ],
+      "confidence": 0.9
+    },
+    {
+      "finding": "Hardware-level Environment Detection",
+      "evidence": "FUN_140001b44 implements CPUID instruction to validate 'GenuineIntel' vendor string.",
+      "source_agents": [
+        "Agent C",
+        "Agent F"
+      ],
+      "confidence": 0.85
+    },
+    {
+      "finding": "Dynamic Import Obfuscation",
+      "evidence": "Functions FUN_1400084c0 and FUN_140002494 wrap LoadLibraryExW and GetProcAddress.",
+      "source_agents": [
+        "Agent C"
+      ],
+      "confidence": 0.9
+    }
+  ],
+  "analysis_quality": "full"
+}

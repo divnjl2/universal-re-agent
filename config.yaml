@@ -5,22 +5,25 @@ models:
   # Tier 1 — local workers (80% of tasks: simple naming, typing, explanation)
   tier1:
     provider: openai
-    model: "qwen2.5-coder:7b"      # Your Nexus model
-    base_url: "http://localhost:8000/v1"
-    complexity_threshold: 0.35     # below this → tier1
+    model: "worker-4b"             # qwen3:4b via NEXUS LiteLLM
+    base_url: "http://192.168.1.136:4000/v1"
+    api_key: "sk-nexus-litellm-2026"
+    complexity_threshold: 0.35
 
   # Tier 2 — local orchestrators (15% of tasks: complex reasoning, CFG)
   tier2:
     provider: openai
-    model: "deepseek-coder-v2"     # Your Nexus model
-    base_url: "http://localhost:8000/v1"
-    complexity_threshold: 0.80     # below this → tier2
+    model: "coder-30b"             # Qwen3-Coder-30B via NEXUS LiteLLM
+    base_url: "http://192.168.1.136:4000/v1"
+    api_key: "sk-nexus-litellm-2026"
+    complexity_threshold: 0.80
 
-  # Tier 3 — cloud escalation / cluster head (5% of tasks)
+  # Tier 3 — cloud escalation (5% of tasks: obfuscation, novel patterns)
   tier3:
     provider: openai
-    model: "qwen-3-30b"            # Your Nexus cluster head
-    base_url: "http://localhost:8000/v1"
+    model: "cloud-sonnet"          # Claude Sonnet 4.6 via cliproxy
+    base_url: "http://192.168.1.136:4000/v1"
+    api_key: "sk-nexus-litellm-2026"
     max_tokens: 8192
 
 mcp:
@@ -34,6 +37,12 @@ mcp:
     host: "localhost"
     port: 8766
     timeout: 60
+    # Start the server with: python frida_mcp_server.py [port]
+    # Server script: src/mcp/frida_mcp_server.py
+    # Protocol: JSON-RPC 2.0 over POST /rpc
+    # Health check: GET http://localhost:8766/health
+    # frida CLI (pip install frida-tools) required for attach/spawn/stalker/scan;
+    # generate_hook works without it (pure JS template generation)
 
 knowledge:
   vector_store:

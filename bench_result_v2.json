@@ -1,0 +1,169 @@
+[
+  {
+    "target": "tls_callback_trick",
+    "model": "ag-gemini-pro",
+    "score": 80,
+    "hits": [
+      "tls",
+      "callback",
+      "debugger",
+      "decrypt"
+    ],
+    "missed": [
+      "10.20.30.40"
+    ],
+    "analysis": {
+      "summary": "A demonstration binary that uses TLS callbacks to perform anti-debugging and environment checks before the main function executes.",
+      "category": "anti_analysis",
+      "mechanism": "TLS callbacks executing IsDebuggerPresent and PEB NtGlobalFlag checks prior to main entry point",
+      "secret_value": "NEXUS2026",
+      "key_artifacts": [
+        "IsDebuggerPresent",
+        "PEB+0xbc check",
+        "TLS callbacks",
+        "NEXUS2026",
+        "NEXUS202ANALYSIS ENVIRONMENT DETECTED"
+      ],
+      "iocs": [],
+      "mitre_ttps": [
+        "T1622 - Debugger Evasion",
+        "T1497.001 - Virtualization/Sandbox Evasion: System Checks"
+      ],
+      "findings": [
+        {
+          "finding": "Anti-debugging checks are performed inside a TLS callback before main()",
+          "evidence": "FUN_140001000 calls IsDebuggerPresent and checks PEB+0xbc, setting DAT_140021b90",
+          "confidence": 1.0
+        },
+        {
+          "finding": "Main function relies on environment flags set by TLS callbacks",
+          "evidence": "FUN_1400011f4 checks DAT_140021b90 to print 'Environment clean' or 'Warning: analysis environment flags'",
+          "confidence": 1.0
+        },
+        {
+          "finding": "Configuration decryption and integrity checking via TLS callbacks",
+          "evidence": "Strings '[TLS-1] Config decrypted' and '[TLS-2] CRC32' referenced in tls_callback_0 and tls_callback_1",
+          "confidence": 0.9
+        }
+      ]
+    }
+  },
+  {
+    "target": "obfuscated_dispatch",
+    "model": "ag-gemini-pro-high",
+    "score": 60,
+    "hits": [
+      "function pointer",
+      "xor",
+      "dispatch"
+    ],
+    "missed": [
+      "encrypted table",
+      "stack string"
+    ],
+    "analysis": {
+      "summary": "The binary demonstrates an obfuscated function dispatcher that decrypts and executes function pointers using an XOR key (0xcafef00d) while employing anti-analysis techniques like timing checks and CPUID verification.",
+      "category": "anti_analysis",
+      "mechanism": "XOR-masked function pointer table (key 0xcafef00d) with dynamic dispatch and GetTickCount timing checks",
+      "secret_value": "0xcafef00d",
+      "key_artifacts": [
+        "0xcafef00d",
+        "=== Obfuscated Dispatch Demo ===",
+        "beacon -> noop -> persist -> sleep",
+        "GenuineIntel",
+        "IsDebuggerPresent",
+        "GetTickCount"
+      ],
+      "iocs": [],
+      "mitre_ttps": [
+        "T1027 - Obfuscated Files or Information",
+        "T1124 - System Time Discovery",
+        "T1497.001 - Virtualization/Sandbox Evasion: System Checks",
+        "T1622 - Debugger Evasion",
+        "T1106 - Native API"
+      ],
+      "findings": [
+        {
+          "finding": "Obfuscated Function Dispatch",
+          "evidence": "FUN_140001248 XORs function pointers with 0xcafef00d and the function index before execution",
+          "confidence": 1.0
+        },
+        {
+          "finding": "Timing-based Evasion",
+          "evidence": "FUN_140001248 calls GetTickCount() twice around the decryption routine",
+          "confidence": 0.9
+        },
+        {
+          "finding": "Sandbox/Virtualization Evasion",
+          "evidence": "FUN_140001f7c checks CPUID for 'GenuineIntel' (0x49656e69, 0x6c65746e, 0x756e6547)",
+          "confidence": 0.95
+        },
+        {
+          "finding": "Dynamic API Resolution",
+          "evidence": "FUN_1400028d4 dynamically loads libraries and resolves functions using LoadLibraryExW and GetProcAddress",
+          "confidence": 0.95
+        },
+        {
+          "finding": "Anti-Debugging",
+          "evidence": "FUN_140001cf4 calls IsDebuggerPresent and manipulates exception filters",
+          "confidence": 0.85
+        }
+      ]
+    }
+  },
+  {
+    "target": "syscall_direct",
+    "model": "ag-gemini-pro-high",
+    "score": 80,
+    "hits": [
+      "syscall",
+      "NtAllocateVirtualMemory",
+      "ssn",
+      "fnv"
+    ],
+    "missed": [
+      "0x18"
+    ],
+    "analysis": {
+      "summary": "This binary is a demonstration of direct syscalls (NtAllocateVirtualMemory, NtFreeVirtualMemory) using SSN obfuscation and FNV-1a hashing to evade user-mode API hooks.",
+      "category": "anti_analysis",
+      "mechanism": "Direct Syscalls with XOR-obfuscated System Service Numbers (SSNs) and FNV-1a API/process hashing",
+      "secret_value": "NEXUSDEMO",
+      "key_artifacts": [
+        "NEXUSDEMO",
+        "NtAllocateVirtualMemory",
+        "NtFreeVirtualMemory",
+        "fnv1a",
+        "SSN"
+      ],
+      "iocs": [],
+      "mitre_ttps": [
+        "T1106 - Native API",
+        "T1055 - Process Injection",
+        "T1027 - Obfuscated Files or Information"
+      ],
+      "findings": [
+        {
+          "finding": "Direct Syscall Implementation",
+          "evidence": "Strings referencing 'NtAllocateVirtualMemory stub' and 'NtFreeVirtualMemory stub' along with SSN resolution.",
+          "confidence": 1.0
+        },
+        {
+          "finding": "SSN Obfuscation",
+          "evidence": "String '[ssn] NtAllocateVirtualMemory: obfuscated=0x%04X xor_key=0x%04X -> SSN=0x%04X\\n'",
+          "confidence": 1.0
+        },
+        {
+          "finding": "Process/API Hashing",
+          "evidence": "String '[fnv] target process hash: 0x%08X  (fnv1a of \"%s\")\\n'",
+          "confidence": 1.0
+        },
+        {
+          "finding": "Memory Marker",
+          "evidence": "String '[alloc] Wrote NEXUS marker to allocated region.' and 'NEXUSDEMO'",
+          "confidence": 1.0
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,34 @@
+{
+  "status": "ok",
+  "data": {
+    "ip_addresses": [],
+    "domains": [],
+    "urls": [],
+    "file_paths": [],
+    "registry_keys": [],
+    "mutex_names": [],
+    "service_names": [],
+    "crypto_keys": [],
+    "beacon_config": {
+      "project_name": "NEXUSDEMO",
+      "techniques": [
+        "Direct Syscalls",
+        "SSN Obfuscation",
+        "FNV-1a Hashing",
+        "RWX Stub Injection"
+      ],
+      "targeted_functions": [
+        "NtAllocateVirtualMemory",
+        "NtFreeVirtualMemory"
+      ]
+    },
+    "ioc_confidence": 0.9,
+    "extraction_notes": "Extracted project name 'NEXUSDEMO' and identified direct syscall implementation targeting memory management functions. No network indicators or file paths were present in the provided strings."
+  },
+  "elapsed_s": 11.84299999999348,
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0
+  }
+}

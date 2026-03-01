@@ -1,0 +1,11 @@
+{
+  "defines": {
+    "FNV_PRIME": "0x01000193",
+    "FNV_BASIS": "0x811C9DC5",
+    "HASH_VIRTUALALLOC": "0x97BC257B",
+    "HASH_GETSYSTEMINFO": "0x4A70F71C",
+    "HASH_GETTICKCOUNT": "0x4A738CFF",
+    "HASH_EXITPROCESS": "0xCA2D3EB1"
+  },
+  "stdout": "hash resolution failed\r\n"
+}

@@ -1,0 +1,6 @@
+{
+  "defines": {
+    "STUB_SIZE": "11"
+  },
+  "stdout": "=== Direct Syscall Demo ===\r\n[ssn] NtAllocateVirtualMemory: obfuscated=0x1337 xor_key=0x132F -> SSN=0x0018\r\n[ssn] NtFreeVirtualMemory:     obfuscated=0x1321 xor_key=0x132F -> SSN=0x000E\r\n[fnv] target process hash: 0x2453F3B9  (fnv1a of \"svchost.exe\")\r\n[fnv] NOTE: process is NOT opened \u2014 hash is identification only\r\n[stub] NtAllocateVirtualMemory stub (SSN=0x18): B8 18 00 00 00 4C 8B D1 0F 05 C3 \r\n[stub] NtFreeVirtualMemory stub     (SSN=0x0E): B8 1E 00 00 00 4C 8B D1 0F 05 C3 \r\n[rwx] NtAllocateVirtualMemory stub installed at 0000024B15AB0000\r\n[rwx] NtFreeVirtualMemory stub     installed at 0000024B15C00000\r\n[alloc] Calling NtAllocateVirtualMemory in own process...\r\n[alloc] Allocated 4096 bytes at 0000024B15C10000 (own process only)\r\n[alloc] Wrote NEXUS marker to allocated region.\r\n[free]  Calling NtFreeVirtualMemory...\r\n[free]  NtFreeVirtualMemory failed: 0xC0000024 \u2014 using VirtualFree\r\n[rwx]  Stub regions released.\r\n[main] Done. Simulated injection target hash: 0x2453F3B9 (never used)\r\n"
+}

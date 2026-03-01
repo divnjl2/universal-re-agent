@@ -1,0 +1,87 @@
+{
+  "status": "ok",
+  "data": {
+    "algorithms_detected": [
+      {
+        "algorithm": "XOR",
+        "confidence": "High",
+        "evidence": "Multiple XOR candidates identified with single-byte keys",
+        "key_candidates": [
+          "0x20",
+          "0x40",
+          "0x81"
+        ],
+        "decrypted_content": [
+          "'('('('(",
+          "H2D0C BpIDA",
+          "XrT YmMu_4T",
+          "~~~~~~~~",
+          "00000000000000000000000000",
+          "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"########"
+        ]
+      },
+      {
+        "algorithm": "RC4",
+        "confidence": "Low",
+        "evidence": "Multiple small high-entropy raw data blobs typical of RC4 encrypted strings",
+        "key_candidates": [],
+        "decrypted_content": []
+      }
+    ],
+    "xor_results": [
+      {
+        "address": "140017966",
+        "key": "0x20",
+        "decrypted": "'('('('("
+      },
+      {
+        "address": "14001f2fc",
+        "key": "0x40",
+        "decrypted": "H2D0C BpIDA"
+      },
+      {
+        "address": "14001fd44",
+        "key": "0x40",
+        "decrypted": "XrT YmMu_4T"
+      },
+      {
+        "address": "1400211c8",
+        "key": "0x81",
+        "decrypted": "~~~~~~~~"
+      },
+      {
+        "address": "1400213ba",
+        "key": "0x20",
+        "decrypted": "00000000000000000000000000"
+      },
+      {
+        "address": "1400215d2",
+        "key": "0x20",
+        "decrypted": "00000000000000000000000000"
+      },
+      {
+        "address": "140021a10",
+        "key": "0x20",
+        "decrypted": "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"########"
+      }
+    ],
+    "hash_resolutions": [],
+    "obfuscation_techniques": [
+      "Single-byte XOR string obfuscation",
+      "Encrypted string blobs (suspected RC4)"
+    ],
+    "crypto_confidence": "Medium",
+    "keys_found": [
+      "0x20",
+      "0x40",
+      "0x81"
+    ],
+    "decrypted_iocs": []
+  },
+  "elapsed_s": 32.23399999999674,
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0
+  }
+}

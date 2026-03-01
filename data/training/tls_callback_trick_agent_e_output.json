@@ -1,0 +1,25 @@
+{
+  "status": "ok",
+  "data": {
+    "ip_addresses": [],
+    "domains": [],
+    "urls": [],
+    "file_paths": [],
+    "registry_keys": [],
+    "mutex_names": [],
+    "service_names": [],
+    "crypto_keys": [],
+    "beacon_config": {
+      "campaign_id": "NEXUS2026",
+      "internal_marker": "NEXUS202ANALYSIS ENVIRONMENT DETECTED"
+    },
+    "ioc_confidence": 0.8,
+    "extraction_notes": "Extracted a potential campaign identifier 'NEXUS2026' and a specific alert string related to analysis detection. Other strings appear to be standard C++ runtime artifacts or debugging messages."
+  },
+  "elapsed_s": 12.40700000000652,
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0
+  }
+}

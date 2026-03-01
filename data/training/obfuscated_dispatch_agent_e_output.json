@@ -1,0 +1,34 @@
+{
+  "status": "ok",
+  "data": {
+    "ip_addresses": [],
+    "domains": [],
+    "urls": [],
+    "file_paths": [],
+    "registry_keys": [],
+    "mutex_names": [],
+    "service_names": [],
+    "crypto_keys": [],
+    "beacon_config": {
+      "commands": [
+        "beacon",
+        "sleep",
+        "exfil",
+        "persist",
+        "elevate",
+        "shell",
+        "cleanup",
+        "noop"
+      ],
+      "obfuscation_method": "XOR-masked function pointer table"
+    },
+    "ioc_confidence": 0.85,
+    "extraction_notes": "Extracted command strings from packed ASCII constants and dispatch sequence logs. The binary appears to be a command-and-control (C2) beacon or loader using an obfuscated dispatch table. No network indicators or file system artifacts were present in the provided snippet."
+  },
+  "elapsed_s": 13.125,
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "defines": {},
+  "stdout": "=== Obfuscated Dispatch Demo ===\r\n[main] Encrypted function pointer table initialized.\r\n[main] Table[0]=0x00007FF61DECE00D  Table[7]=0x00007FF61DECE1F6  (XOR-masked)\r\n[main] Dispatching sequence: beacon -> noop -> persist -> sleep\r\n[dispatch] index=0  enc=0x00007FF61DECE00D  calling -> [ACTION] beacon: would execute here (DEMO)\r\n[dispatch] index=7  enc=0x00007FF61DECE1F6  calling -> [ACTION] noop: would execute here (DEMO)\r\n[dispatch] index=3  enc=0x00007FF61DECE0D2  calling -> [ACTION] persist: would execute here (DEMO)\r\n[dispatch] index=1  enc=0x00007FF61DECE040  calling -> [ACTION] sleep: would execute here (DEMO)\r\n[main] Dispatch sequence complete.\r\n"
+}

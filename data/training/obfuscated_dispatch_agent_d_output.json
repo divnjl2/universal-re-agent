@@ -1,0 +1,50 @@
+{
+  "status": "ok",
+  "data": {
+    "mitre_ttps": [
+      {
+        "technique_id": "T1497.001",
+        "technique_name": "Virtualization/Sandbox Evasion: System Checks",
+        "evidence": "GetTickCount, QueryPerformanceCounter used for timing-based evasion",
+        "confidence": "medium"
+      },
+      {
+        "technique_id": "T1622",
+        "technique_name": "Debugger Evasion",
+        "evidence": "IsDebuggerPresent, CloseHandle (exception triggering)",
+        "confidence": "high"
+      },
+      {
+        "technique_id": "T1027",
+        "technique_name": "Obfuscated Files or Information",
+        "evidence": "Strings referencing 'Obfuscated Dispatch', 'XOR-masked', and 'Encrypted function pointer table'",
+        "confidence": "high"
+      },
+      {
+        "technique_id": "T1059",
+        "technique_name": "Command and Scripting Interpreter",
+        "evidence": "Strings referencing 'dispatch', 'execute', and 'beacon'",
+        "confidence": "medium"
+      },
+      {
+        "technique_id": "T1106",
+        "technique_name": "Native API",
+        "evidence": "Direct use of KERNEL32.DLL exports for process and file manipulation",
+        "confidence": "high"
+      }
+    ],
+    "malware_family_hints": [
+      "Custom Loader",
+      "Obfuscated Beacon",
+      "Metasploit/Cobalt Strike derivative (due to 'beacon' and 'dispatch' terminology)"
+    ],
+    "threat_category": "Trojan / Loader",
+    "ttp_confidence": "high"
+  },
+  "elapsed_s": 10.03200000000652,
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0
+  }
+}

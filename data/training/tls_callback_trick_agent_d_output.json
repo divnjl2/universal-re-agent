@@ -1,0 +1,50 @@
+{
+  "status": "ok",
+  "data": {
+    "mitre_ttps": [
+      {
+        "technique_id": "T1497.001",
+        "technique_name": "Virtualization/Sandbox Evasion: System Checks",
+        "evidence": "String 'NEXUS202ANALYSIS ENVIRONMENT DETECTED' and 'analysis environment flags'",
+        "confidence": "high"
+      },
+      {
+        "technique_id": "T1622",
+        "technique_name": "Debugger Evasion",
+        "evidence": "IsDebuggerPresent, CloseHandle (exception triggering), and string '[TLS-0] Anti-debug check'",
+        "confidence": "high"
+      },
+      {
+        "technique_id": "T1055",
+        "technique_name": "Process Injection",
+        "evidence": "Presence of TLS Callback Trick Demo strings indicating execution before entry point",
+        "confidence": "medium"
+      },
+      {
+        "technique_id": "T1140",
+        "technique_name": "Deobfuscate/Decode Files or Information",
+        "evidence": "String '[TLS-1] Config decrypted'",
+        "confidence": "high"
+      },
+      {
+        "technique_id": "T1491",
+        "technique_name": "Defacement",
+        "evidence": "NEXUS2026 identifier",
+        "confidence": "low"
+      }
+    ],
+    "malware_family_hints": [
+      "NEXUS2026",
+      "Nexus Loader",
+      "Custom Evasion Stub"
+    ],
+    "threat_category": "Evasive Downloader / Loader",
+    "ttp_confidence": "high"
+  },
+  "elapsed_s": 10.797000000020489,
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0
+  }
+}

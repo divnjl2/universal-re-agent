@@ -1,0 +1,52 @@
+{
+  "status": "ok",
+  "data": {
+    "mitre_ttps": {
+      "ttps": [
+        {
+          "technique_id": "T1055",
+          "technique_name": "Process Injection",
+          "evidence": "Strings referencing NtAllocateVirtualMemory, NtFreeVirtualMemory, and 'target process hash' suggest preparation for cross-process memory manipulation.",
+          "confidence": "High"
+        },
+        {
+          "technique_id": "T1106",
+          "technique_name": "Native API",
+          "evidence": "Direct references to NT syscall stubs (NtAllocateVirtualMemory, NtFreeVirtualMemory) and manual SSN (System Service Number) extraction.",
+          "confidence": "High"
+        },
+        {
+          "technique_id": "T1562.001",
+          "technique_name": "Impair Defenses: Disable or Modify Tools",
+          "evidence": "Use of direct syscalls to bypass EDR/AV hooks on user-mode APIs.",
+          "confidence": "High"
+        },
+        {
+          "technique_id": "T1027",
+          "technique_name": "Obfuscated Files or Information",
+          "evidence": "Strings indicating XOR-based obfuscation of System Service Numbers (SSNs).",
+          "confidence": "Medium"
+        },
+        {
+          "technique_id": "T1497.001",
+          "technique_name": "Virtualization/Sandbox Evasion: System Checks",
+          "evidence": "Import of QueryPerformanceCounter and IsDebuggerPresent for timing-based or environment-based anti-analysis.",
+          "confidence": "Medium"
+        }
+      ],
+      "malware_family_hints": [
+        "NEXUS (referenced as NEXUSDEMO/NEXUS marker)",
+        "Direct Syscall Loader",
+        "Hell's Gate / Halo's Gate variant"
+      ],
+      "threat_category": "Evasion / Defense Evasion",
+      "ttp_confidence": "High"
+    }
+  },
+  "elapsed_s": 14.73399999999674,
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0
+  }
+}

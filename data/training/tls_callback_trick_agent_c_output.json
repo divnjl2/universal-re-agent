@@ -1,0 +1,93 @@
+{
+  "status": "ok",
+  "data": {
+    "entry_function": "FUN_1400011f4",
+    "main_logic_summary": "The program appears to be a demonstration of a TLS callback trick used for anti-analysis and environment detection. The entry function checks flags set by a TLS callback (FUN_140001000) to determine if an analysis environment or debugger is present, and prints the result.",
+    "execution_graph": [
+      {
+        "from": "FUN_140001000",
+        "to": "IsDebuggerPresent",
+        "condition": "param_2 == 1"
+      },
+      {
+        "from": "FUN_1400011f4",
+        "to": "FID_conflict_printf_s",
+        "condition": "unconditional"
+      },
+      {
+        "from": "FUN_1400084c0",
+        "to": "LoadLibraryExW",
+        "condition": "hLibModule == 0"
+      },
+      {
+        "from": "FUN_1400084c0",
+        "to": "GetProcAddress",
+        "condition": "hLibModule != 0"
+      },
+      {
+        "from": "FUN_140002494",
+        "to": "LoadLibraryExW",
+        "condition": "hLibModule == 0"
+      },
+      {
+        "from": "FUN_14000751c",
+        "to": "GetModuleHandleExW",
+        "condition": "unconditional"
+      },
+      {
+        "from": "FUN_14000751c",
+        "to": "GetProcAddress",
+        "condition": "GetModuleHandleExW succeeds"
+      },
+      {
+        "from": "FUN_140008718",
+        "to": "FUN_1400084c0",
+        "condition": "unconditional"
+      },
+      {
+        "from": "FUN_140008894",
+        "to": "FUN_1400084c0",
+        "condition": "unconditional"
+      }
+    ],
+    "hidden_behaviors": [
+      {
+        "behavior": "Dynamic API Resolution",
+        "evidence": "FUN_1400084c0 and FUN_140002494 use LoadLibraryExW and GetProcAddress to resolve functions dynamically, likely to hide imports.",
+        "confidence": "High"
+      },
+      {
+        "behavior": "TLS Callback Anti-Debugging",
+        "evidence": "FUN_140001000 checks IsDebuggerPresent and PEB flags, setting DAT_140021b90 which is later checked by FUN_1400011f4.",
+        "confidence": "High"
+      },
+      {
+        "behavior": "CPUID Anti-VM/Environment Check",
+        "evidence": "FUN_140001b44 uses cpuid to check for 'GenuineIntel' and potentially other CPU features.",
+        "confidence": "Medium"
+      }
+    ],
+    "critical_functions": [
+      "FUN_1400011f4",
+      "FUN_140001000",
+      "FUN_1400084c0",
+      "FUN_140002494",
+      "FUN_140001b44"
+    ],
+    "dead_code": [
+      "FUN_140001b44 (contains unreachable blocks)"
+    ],
+    "anti_analysis_triggers": [
+      "IsDebuggerPresent() in FUN_140001000",
+      "PEB BeingDebugged/NtGlobalFlag check in FUN_140001000 (*(byte *)((longlong)ProcessEnvironmentBlock + 0xbc) & 0x70)",
+      "CPUID check in FUN_140001b44"
+    ],
+    "flow_confidence": "Medium"
+  },
+  "elapsed_s": 23.610000000015134,
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0
+  }
+}

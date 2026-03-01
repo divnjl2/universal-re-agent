@@ -1,0 +1,40 @@
+{
+  "status": "ok",
+  "data": {
+    "binary_profile": {
+      "binary_category": "Malware/PoC (Evasion/Injection)",
+      "architecture": "x86_64",
+      "compiler": "Microsoft Visual C++ (MSVC)",
+      "protection_level": "Medium",
+      "protection_mechanisms": [
+        "Direct Syscalls",
+        "SSN Obfuscation (XOR)",
+        "Dynamic Stub Generation",
+        "RWX Memory Allocation",
+        "Anti-Debugging (IsDebuggerPresent)",
+        "FNV-1a Hashing (API/Process Hashing)"
+      ],
+      "language_indicators": [
+        "C",
+        "C++",
+        "MSVC Runtime Strings (__cdecl, __stdcall)",
+        "Windows API"
+      ],
+      "notable_imports": [
+        "VirtualAlloc",
+        "VirtualFree",
+        "IsDebuggerPresent",
+        "RtlCaptureContext",
+        "QueryPerformanceCounter"
+      ],
+      "structural_confidence": 0.95,
+      "rationale": "The binary explicitly references 'Direct Syscall Demo' and 'NEXUSDEMO' in its strings. It implements manual system call stub generation for NtAllocateVirtualMemory and NtFreeVirtualMemory, using XOR-obfuscated System Service Numbers (SSNs). The presence of FNV-1a hashing and RWX memory allocation is characteristic of shellcode loaders or process injection tools designed to bypass EDR hooks."
+    }
+  },
+  "elapsed_s": 14.73399999999674,
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "total_tokens": 0
+  }
+}
