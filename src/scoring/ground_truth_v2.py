@@ -1,5 +1,5 @@
 """
-Structured ground truth (v2) for 8 RE benchmark targets.
+Structured ground truth (v2) for 11 RE benchmark targets.
 
 Each target defines:
   - category: exact string
@@ -7,6 +7,8 @@ Each target defines:
   - mechanism_keywords: key terms to find
   - artifacts: typed list with expected values
   - iocs: IP/port/URL/key indicators
+  - execution_order: P7 — ordered keywords for StructuralFidelityScorer
+  - mechanism_verification: P10 — Python expression to test functional correctness
 """
 
 from .score_v2 import ArtifactSpec, IOCSpec, GroundTruthV2
@@ -51,6 +53,10 @@ GROUND_TRUTH_V2 = {
             IOCSpec(type="key", value="AgenticRE2026", points=5, required=True),
         ],
         summary_keywords=["password", "strcmp", "validation"],
+        # P7: execution flow — read input → strcmp → branch on result
+        execution_order=["input", "strcmp", "access"],
+        # P10: functional check — agent must identify the password string
+        mechanism_verification="'AgenticRE2026'.lower() in claimed_key.lower() or 'agentic' in raw_text.lower()",
     ),
 
     # ══════════════════════════════════════════════════════════════════════════════
@@ -90,6 +96,10 @@ GROUND_TRUTH_V2 = {
         ],
         iocs=[],
         summary_keywords=["xor", "decrypt", "key"],
+        # P7: load key → XOR loop → decrypt output
+        execution_order=["key", "xor", "decrypt", "connecting"],
+        # P10: key "heepek" must be identified; if present, XOR claim is verifiable
+        mechanism_verification="'heepek' in claimed_key.lower() or 'heepek' in raw_text.lower()",
     ),
 
     # ══════════════════════════════════════════════════════════════════════════════
@@ -105,6 +115,8 @@ GROUND_TRUTH_V2 = {
             "detect",
             "conditional",
         ],
+        # P7: call IsDebuggerPresent → check return → branch → exit or continue
+        execution_order=["IsDebuggerPresent", "check", "debugger", "exit"],
         artifacts=[
             ArtifactSpec(
                 type="api_call",
@@ -173,6 +185,8 @@ GROUND_TRUTH_V2 = {
         ],
         iocs=[],
         summary_keywords=["fnv", "api_hash", "resolve"],
+        # P7: iterate module exports → compute FNV-1a hash → compare → store pointer
+        execution_order=["module", "hash", "export", "resolve", "VirtualAlloc"],
     ),
 
     # ══════════════════════════════════════════════════════════════════════════════
@@ -215,6 +229,10 @@ GROUND_TRUTH_V2 = {
             IOCSpec(type="port", value="4444", points=5),
         ],
         summary_keywords=["rc4", "config", "c2"],
+        # P7: KSA init → PRGA decrypt → parse config → connect to C2
+        execution_order=["rc4", "key", "decrypt", "config", "beacon"],
+        # P10: key NexusKey2026 must be identified for RC4 claim to be verifiable
+        mechanism_verification="'nexuskey' in claimed_key.lower() or 'NexusKey2026' in raw_text",
     ),
 
     # ══════════════════════════════════════════════════════════════════════════════
@@ -265,6 +283,8 @@ GROUND_TRUTH_V2 = {
         ],
         iocs=[],
         summary_keywords=["anti-debug", "evasion", "checks"],
+        # P7: IsDebuggerPresent → heap flags → timing → CPUID → parent PID
+        execution_order=["IsDebuggerPresent", "heap", "timing", "cpuid", "parent"],
     ),
 
     # ══════════════════════════════════════════════════════════════════════════════
@@ -309,6 +329,8 @@ GROUND_TRUTH_V2 = {
         ],
         iocs=[],
         summary_keywords=["vm", "dispatch", "opcode"],
+        # P7: fetch opcode → dispatch on value → execute handler → loop
+        execution_order=["opcode", "dispatch", "OP_XOR", "bytecode"],
     ),
 
     # ══════════════════════════════════════════════════════════════════════════════
@@ -362,6 +384,8 @@ GROUND_TRUTH_V2 = {
         ],
         iocs=[],
         summary_keywords=["injection", "CreateRemoteThread", "notepad"],
+        # P7: find notepad → OpenProcess → VirtualAllocEx → WriteProcessMemory → CreateRemoteThread
+        execution_order=["notepad", "OpenProcess", "VirtualAllocEx", "WriteProcessMemory", "CreateRemoteThread"],
     ),
 
     # ══════════════════════════════════════════════════════════════════════════════
@@ -390,6 +414,8 @@ GROUND_TRUTH_V2 = {
             IOCSpec(type="ip", value="10.20.30.40", points=15, required=True),
         ],
         summary_keywords=["tls", "callback", "anti-debug", "decrypt"],
+        # P7: TLS callback fires first → IsDebuggerPresent → XOR decrypt config → CRC32 check → main is decoy
+        execution_order=["tls", "IsDebuggerPresent", "decrypt", "crc32", "decoy"],
     ),
 
     # ══════════════════════════════════════════════════════════════════════════════
@@ -418,6 +444,8 @@ GROUND_TRUTH_V2 = {
         ],
         iocs=[],
         summary_keywords=["obfuscated", "dispatch", "function pointer", "xor"],
+        # P7: XOR decrypt table entry → indirect call via pointer → execute stack-built command
+        execution_order=["xor", "decrypt", "pointer", "indirect", "stack string"],
     ),
 
     # ══════════════════════════════════════════════════════════════════════════════
@@ -446,6 +474,8 @@ GROUND_TRUTH_V2 = {
         ],
         iocs=[],
         summary_keywords=["syscall", "direct", "ssn", "NtAllocateVirtualMemory"],
+        # P7: decode XOR SSN → build syscall stub → invoke with NtAllocateVirtualMemory
+        execution_order=["xor", "ssn", "syscall", "NtAllocateVirtualMemory"],
     ),
 }
 

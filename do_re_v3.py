@@ -17,6 +17,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -32,6 +33,8 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="repla
 BASE = Path(__file__).parent
 sys.path.insert(0, str(BASE))
 from src.knowledge.api_hash_db import ApiHashDB
+from src.scoring.score_v2 import score_v2 as _score_v2
+from src.scoring.ground_truth_v2 import GROUND_TRUTH_V2, get_ground_truth
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -144,6 +147,13 @@ SYSTEM_A = """\
 You are a senior binary analyst specializing in structural classification.
 Analyze the provided binary metadata: imports, function summaries, string samples.
 Identify binary category, architecture, compiler, and protection mechanisms.
+
+COVERAGE MANDATE (P6): Your exclusive domain is structural/static analysis.
+- DO NOT analyze cryptographic algorithms or decode obfuscation — that is Agent B's domain.
+- DO NOT map MITRE TTPs — that is Agent D's domain.
+- DO NOT attempt to decode XOR/RC4/hash constants — defer to Agent B.
+- FOCUS on: binary category, architecture, compiler artifacts, import categories, structural patterns.
+
 Output ONLY raw JSON — no markdown, no explanation.
 """
 
@@ -161,6 +171,13 @@ Your priorities (in order):
 
 For every XOR constant pair: compute A ^ B and note if the result matches a known SSN (0x00-0xFF range).
 For every hash constant: identify the algorithm (FNV-1a prime = 0x01000193, FNV offset = 0x811c9dc5).
+
+COVERAGE MANDATE (P6): Your exclusive domain is cryptography and obfuscation.
+- DO NOT categorize PE imports by API category — that is Agent A's domain.
+- DO NOT map MITRE TTPs — that is Agent D's domain.
+- DO NOT describe execution flow or call graphs — that is Agent C's domain.
+- FOCUS on: algorithms, keys, hash constants, XOR pairs, encoded strings, SSN decoding.
+
 Output ONLY raw JSON — no markdown, no explanation.
 """
 
@@ -168,6 +185,14 @@ SYSTEM_C = """\
 You are an expert code flow analyst.
 Trace the execution graph of the provided decompiled functions.
 Identify entry point, main logic, hidden behaviors, and anti-analysis triggers.
+
+COVERAGE MANDATE (P6): Your exclusive domain is code flow and behavioral analysis.
+- DO NOT decode cryptographic keys or algorithms — that is Agent B's domain.
+- DO NOT extract IOC strings (IPs, URLs) as concrete values — that is Agent E's domain.
+- DO NOT categorize binary type from imports alone — that is Agent A's domain.
+- FOCUS on: execution graph edges, hidden/conditional behaviors, anti-debug triggers,
+  function call sequences, dead code, opaque predicates, VM dispatch patterns.
+
 Output ONLY raw JSON — no markdown, no explanation.
 """
 
@@ -202,6 +227,32 @@ SYSTEM_F = """\
 You are a reverse engineer naming and summarizing decompiled functions.
 For each function in the batch: infer its purpose from pseudocode, string references, API calls.
 Output ONLY raw JSON — no markdown, no explanation.
+"""
+
+# P3: Phase 1 system prompt — categorize before naming
+SYSTEM_F_CATEGORIZE = """\
+You are a reverse engineer performing Phase 1 function analysis: CATEGORIZATION ONLY.
+For each function: determine its high-level category based on imports, strings, pseudocode patterns.
+Do NOT name functions yet — only categorize them into broad groups.
+Categories: crypto, injection, anti_analysis, network, vm_dispatch, utility, unknown
+Output ONLY raw JSON — no markdown, no explanation.
+"""
+
+SYSTEM_VERIFIER = """\
+You are a reverse engineering verifier — the "checker" in a reverser-checker loop (P4).
+You receive a synthesized RE report and a list of ground-truth artifact categories to verify.
+Your job: identify missing or incorrect claims, and generate targeted re-query hints.
+
+For each category in [crypto, code_flow, iocs]:
+- Check if the report contains adequate coverage of that category.
+- If something important is missing or wrong, produce a specific re-query hint for the responsible agent.
+
+Output ONLY raw JSON:
+{"verification_status": "ok|needs_rework",
+ "missing_coverage": [{"category": "crypto|code_flow|iocs", "issue": "...", "re_query_agent": "agent_b|agent_c|agent_e", "hint": "specific hint for re-query"}],
+ "confirmed_claims": ["list of claims that are correct"],
+ "confidence_adjustment": 0.0
+}
 """
 
 SYSTEM_SYNTHESIS = """\
@@ -400,13 +451,63 @@ def slice_for_agent_b(dump: dict, hash_matches: list) -> dict:
     }
 
 
+def _fn_semantic_priority(fn: dict) -> tuple:
+    """
+    P11: Enhanced priority scoring for Agent C function selection.
+    Ranks by semantic signal density, not just string/import count.
+    Higher priority signals: crypto ops, network refs, anti-debug refs, entry points.
+    Returns tuple for sorting (lower = higher priority).
+    """
+    pc   = (fn.get("pseudocode") or "").lower()
+    imp  = [i.lower() for i in fn.get("imp_calls", [])]
+    strs = [s.lower() for s in fn.get("str_refs", [])]
+
+    # Signal weights
+    is_entry = -500 if fn.get("name", "").lower() in ("main", "entry", "winmain", "_start") else 0
+
+    # Crypto signals
+    crypto_score = sum([
+        pc.count("xor") * 30,
+        pc.count("rc4") * 40,
+        pc.count("aes") * 40,
+        pc.count("fnv") * 35,
+        pc.count("crc32") * 30,
+        pc.count("0x1337") * 50,  # SSN obfuscation marker
+        pc.count("0x132f") * 50,
+        sum(40 for i in imp if any(c in i for c in ("crypt", "cipher", "hash", "bcrypt"))),
+    ])
+
+    # Network refs
+    network_score = sum([
+        sum(30 for s in strs if any(c in s for c in (".", ":", "http", "socket"))),
+        sum(30 for i in imp if any(c in i for c in ("connect", "recv", "send", "socket", "http"))),
+    ])
+
+    # Anti-debug refs
+    antidebug_score = sum([
+        sum(35 for i in imp if any(c in i for c in ("debugger", "ntglobal", "cpuid", "rdtsc", "getparent"))),
+        pc.count("isdebuggerpresent") * 40,
+        pc.count("ntglobalflag") * 40,
+        pc.count("tls") * 30,
+    ])
+
+    # Size signal (medium-size functions are most interesting)
+    sz = fn.get("size", 0)
+    size_score = min(sz // 10, 100) if 20 <= sz <= 500 else 0
+
+    total_signal = is_entry - crypto_score - network_score - antidebug_score - size_score
+    return (total_signal, fn.get("address", ""))
+
+
 def slice_for_agent_c(dump: dict) -> dict:
     """
     Agent C — Code Flow Analyst.
-    Receives: top 20 user function pseudocodes, sorted by interest score.
+    P11: Returns top 10 functions by semantic priority score (not top 20 by size).
+    Prioritizes: entry points, crypto ops, network refs, anti-debug refs.
+    Reduces noise from large utility functions with no behavioral signal.
     """
     user_fns = [f for f in dump.get("functions", []) if f.get("is_user")]
-    sorted_fns = sorted(user_fns, key=fn_priority_key)
+    sorted_fns = sorted(user_fns, key=_fn_semantic_priority)
     return {
         "functions": [
             {
@@ -417,8 +518,16 @@ def slice_for_agent_c(dump: dict) -> dict:
                 "str_refs": fn.get("str_refs", [])[:6],
                 "imp_calls": fn.get("imp_calls", [])[:8],
                 "packed_ascii": decode_packed_ints(fn.get("pseudocode", "")),
+                "priority_signals": {
+                    "has_crypto": any(k in (fn.get("pseudocode") or "").lower()
+                                      for k in ("xor", "rc4", "fnv", "crc32", "aes")),
+                    "has_network": any(k in str(fn.get("imp_calls", [])).lower()
+                                       for k in ("connect", "send", "recv", "socket")),
+                    "has_antidebug": any(k in str(fn.get("imp_calls", [])).lower()
+                                         for k in ("debugger", "tls", "cpuid")),
+                },
             }
-            for fn in sorted_fns[:20]
+            for fn in sorted_fns[:10]
         ]
     }
 
@@ -537,8 +646,11 @@ class ParallelREPipeline:
           1. Run Ghidra headless (reuses cache if exists)
           2. Load dump JSON
           3. run(name, dump) -> parallel agents + synthesis
-          4. score against ground truth
-          5. Return result dict
+          4. P4: Verifier pass — check for missing artifacts, trigger re-queries
+          5. P9: Conditional re-run if score < 40%
+          6. Score: both legacy keyword score + score_v2 (5 dimensions)
+          7. P8: Meta-eval (MARBLE-lite metrics)
+          8. Return result dict with all metrics
         """
         print(f"\n{'='*60}")
         print(f"TARGET: {name}.exe  [v3 parallel pipeline]")
@@ -568,8 +680,77 @@ class ParallelREPipeline:
         # Run parallel pipeline
         final_report, agent_results = self.run(name, dump)
 
-        # Score against ground truth
+        # ── P4: Verifier pass ───────────────────────────────────────────────
+        print(f"  [v3] Running verifier pass (P4)...")
+        verifier_result = self._run_verifier(final_report, name)
+        missing_coverage = verifier_result.get("missing_coverage", [])
+
+        # Re-query responsible agents for each gap (max 1 round)
+        if missing_coverage:
+            print(f"  [v3] Verifier found {len(missing_coverage)} gaps — triggering re-queries")
+            slices = {
+                "agent_b": slice_for_agent_b(dump, self._detect_hash_matches(dump)),
+                "agent_c": slice_for_agent_c(dump),
+                "agent_e": slice_for_agent_e(dump),
+            }
+            for gap in missing_coverage[:3]:  # cap at 3 re-queries
+                agent_id = gap.get("re_query_agent", "")
+                hint     = gap.get("hint", "")
+                if agent_id in slices and hint:
+                    updated = self._run_targeted_requery(
+                        agent_id, hint, slices[agent_id], agent_results[agent_id]
+                    )
+                    agent_results[agent_id] = updated
+
+            # Re-synthesize with updated agent results if any re-queries ran
+            if any(gap.get("re_query_agent") in ("agent_b", "agent_c", "agent_e")
+                   for gap in missing_coverage[:3]):
+                print(f"  [v3] Re-synthesizing after verifier re-queries...")
+                conflicts = self.detect_conflicts(agent_results)
+                final_report = self.synthesize(agent_results, conflicts)
+
+        # ── Initial scoring (legacy keyword-based) ──────────────────────────
         sc = self.score(name, final_report)
+        print(f"  [v3] Legacy score: {sc['score']}%  hits={sc['hits']}  missed={sc['missed']}")
+
+        # ── P9: Conditional re-run if score < 40% ───────────────────────────
+        rerun_triggered = False
+        if sc["score"] < 40:
+            print(f"  [v3] Score < 40% ({sc['score']}%) — triggering P9 Agent B re-run with missed hints")
+            missed_artifacts = sc.get("missed", [])
+            if missed_artifacts:
+                hint = f"Previous analysis missed these key findings: {missed_artifacts[:5]}. Focus specifically on finding them."
+                ar_b = agent_results.get("agent_b")
+                if ar_b:
+                    b_slice = slice_for_agent_b(dump, self._detect_hash_matches(dump))
+                    updated_b = self._run_targeted_requery("agent_b", hint, b_slice, ar_b)
+                    agent_results["agent_b"] = updated_b
+                    # Re-synthesize
+                    conflicts = self.detect_conflicts(agent_results)
+                    final_report = self.synthesize(agent_results, conflicts)
+                    sc = self.score(name, final_report)
+                    rerun_triggered = True
+                    print(f"  [v3] Post-rerun score: {sc['score']}%")
+
+        # ── score_v2 (5 dimensions) ─────────────────────────────────────────
+        sc_v2 = None
+        try:
+            gt_v2 = get_ground_truth(name)
+            raw_text = json.dumps(final_report)
+            sc_v2 = _score_v2(name, final_report, raw_text, gt_v2)
+            print(f"  [v3] score_v2: {sc_v2['total']}/100  "
+                  f"cat={sc_v2['dimensions']['category']['points']}  "
+                  f"mech={sc_v2['dimensions']['mechanism']['points']}  "
+                  f"art={sc_v2['dimensions']['artifacts']['points']}  "
+                  f"ioc={sc_v2['dimensions']['iocs']['points']}  "
+                  f"fid={sc_v2['dimensions']['structural_fidelity']['points']}")
+        except Exception as e:
+            print(f"  [v3] score_v2 failed: {e}")
+
+        # ── P8: Meta-eval ───────────────────────────────────────────────────
+        meta_eval = self._compute_meta_eval(agent_results, sc_v2 or {}, final_report)
+        print(f"  [v3] meta_eval: comm_eff={meta_eval['communication_efficiency']}  "
+              f"cfged_jumps={meta_eval['cfged_proxy']['goto_jump_count']}")
 
         # Print summary
         print(f"\n  category   : {final_report.get('category','?')}")
@@ -585,6 +766,8 @@ class ParallelREPipeline:
             status_str = f"{ar.status:7s}  {ar.elapsed_s:5.1f}s  model={ar.model}"
             if ar.status == "error":
                 status_str += f"  err={ar.error_msg[:60]}"
+            contrib = meta_eval["agent_contribution"].get(aid, 0)
+            status_str += f"  contrib={contrib:.2f}"
             print(f"    {aid}: {status_str}")
 
         # Persist per-agent outputs for inspection
@@ -614,6 +797,11 @@ class ParallelREPipeline:
             "analysis_quality": final_report.get("analysis_quality", "unknown"),
             "final_report": final_report,
             "agent_results": {aid: ar.status for aid, ar in agent_results.items()},
+            # New fields from plan implementations
+            "score_v2": sc_v2,
+            "verifier": verifier_result,
+            "meta_eval": meta_eval,
+            "rerun_triggered": rerun_triggered,
         }
 
     # -----------------------------------------------------------------------
@@ -1007,44 +1195,107 @@ class ParallelREPipeline:
     def _run_agent_f(self, batches: list[dict]) -> AgentResult:
         """
         Agent F — Batch Function Namer (ag-gemini-pro, parallel sub-requests).
-        Processes ALL user functions in parallel batches of 15.
-        Aggregates per-batch results into unified function_map.
+        P3: Two-phase approach:
+          Phase 1: Categorize all functions (crypto/injection/anti_analysis/network/vm_dispatch/utility)
+          Phase 2: Name each function using its category as context for more precise naming.
+        Processes ALL user functions in parallel batches of 10.
         """
         model = AGENT_MODELS["agent_f"]
         t0 = time.monotonic()
-        print(f"    [agent_f] starting ({model})  batches={len(batches)}...")
+        print(f"    [agent_f] starting ({model})  batches={len(batches)}  [2-phase P3]...")
 
         function_map: dict[str, dict] = {}
         batch_errors = 0
 
-        def _run_batch(batch: dict) -> dict:
-            prompt = _build_prompt_agent_f_batch(batch)
+        # ── Phase 1: Categorize ────────────────────────────────────────────────
+        category_map: dict[str, str] = {}  # function_name → category
+
+        def _run_batch_phase1(batch: dict) -> dict:
+            """Phase 1: categorize only (lightweight)."""
+            fns = batch.get("functions", [])
+            fn_lines = []
+            for fn in fns:
+                calls = str(fn.get("imp_calls", []))[:100]
+                strs  = str(fn.get("str_refs", []))[:80]
+                pc    = fn.get("pseudocode", "")[:300]
+                fn_lines.append(
+                    f"// {fn['name']} ({fn.get('size',0)}B) calls={calls} strs={strs}\n{pc}"
+                )
+            prompt = (
+                f"Categorize these {len(fns)} functions into one of: "
+                "crypto, injection, anti_analysis, network, vm_dispatch, utility, unknown\n\n"
+                + "\n---\n".join(fn_lines)
+                + '\n\nProduce JSON: {"functions": [{"name": "...", "category": "..."}]}'
+                "\nOutput raw JSON only."
+            )
+            raw_text, _ = curl_llm(
+                model=model,
+                system=SYSTEM_F_CATEGORIZE,
+                user=prompt,
+                max_tokens=500,
+                label=f"agent_f_p1_b{batch['batch_index']}",
+            )
+            return parse_json_response(raw_text)
+
+        # Phase 1 parallel
+        max_parallel = min(3, len(batches))
+        with ThreadPoolExecutor(max_workers=max_parallel,
+                                thread_name_prefix="re_agent_f_p1") as pool:
+            futures1 = {pool.submit(_run_batch_phase1, b): b["batch_index"] for b in batches}
+            for future in futures1:
+                bidx = futures1[future]
+                try:
+                    result = future.result(timeout=45)
+                    for fn_entry in result.get("functions", []):
+                        fname = fn_entry.get("name", "")
+                        if fname:
+                            category_map[fname] = fn_entry.get("category", "unknown")
+                except Exception as e:
+                    print(f"    [agent_f] phase1 batch {bidx} error: {e}")
+
+        t_p1 = time.monotonic() - t0
+        print(f"    [agent_f] phase1 done in {t_p1:.1f}s  categorized={len(category_map)}")
+
+        # ── Phase 2: Name with category context ──────────────────────────────
+        def _run_batch_phase2(batch: dict) -> dict:
+            """Phase 2: name within category context from phase 1."""
+            # Inject category from phase 1 into each function entry
+            batch_with_categories = dict(batch)
+            fns_with_cats = []
+            for fn in batch.get("functions", []):
+                fn_copy = dict(fn)
+                fn_copy["pre_categorized"] = category_map.get(fn["name"], "unknown")
+                fns_with_cats.append(fn_copy)
+            batch_with_categories["functions"] = fns_with_cats
+
+            prompt = _build_prompt_agent_f_batch(batch_with_categories)
             raw_text, _ = curl_llm(
                 model=model,
                 system=SYSTEM_F,
                 user=prompt,
                 max_tokens=AGENT_MAX_TOKENS["agent_f"],
-                label=f"agent_f_b{batch['batch_index']}",
+                label=f"agent_f_p2_b{batch['batch_index']}",
             )
             return parse_json_response(raw_text)
 
-        # Run all batches in parallel (up to 5 concurrent)
-        max_parallel = min(3, len(batches))
+        # Phase 2 parallel
         with ThreadPoolExecutor(max_workers=max_parallel,
-                                thread_name_prefix="re_agent_f") as pool:
-            futures = {pool.submit(_run_batch, b): b["batch_index"] for b in batches}
-            for future in futures:
-                bidx = futures[future]
+                                thread_name_prefix="re_agent_f_p2") as pool:
+            futures2 = {pool.submit(_run_batch_phase2, b): b["batch_index"] for b in batches}
+            for future in futures2:
+                bidx = futures2[future]
                 try:
                     result = future.result(timeout=60)
-                    # result should be {"functions": [{name, purpose, category, confidence}]}
                     for fn_entry in result.get("functions", []):
                         fname = fn_entry.get("name", "")
                         if fname:
+                            # Merge phase 1 category into phase 2 result
+                            if fname in category_map and "category" not in fn_entry:
+                                fn_entry["category"] = category_map[fname]
                             function_map[fname] = fn_entry
                 except Exception as e:
                     batch_errors += 1
-                    print(f"    [agent_f] batch {bidx} error: {e}")
+                    print(f"    [agent_f] phase2 batch {bidx} error: {e}")
 
         elapsed = time.monotonic() - t0
         print(f"    [agent_f] done in {elapsed:.1f}s  "
@@ -1054,7 +1305,8 @@ class ParallelREPipeline:
         return AgentResult(
             agent_id="agent_f", model=model, status=status,
             data={"function_map": function_map, "batch_errors": batch_errors,
-                  "total_functions": len(function_map)},
+                  "total_functions": len(function_map),
+                  "category_map": category_map},
             elapsed_s=elapsed,
         )
 
@@ -1301,6 +1553,190 @@ class ParallelREPipeline:
         return conflicts
 
     # -----------------------------------------------------------------------
+    # P4: Verifier — actor-critic checker pass
+    # -----------------------------------------------------------------------
+
+    def _run_verifier(self, final_report: dict, target: str) -> dict:
+        """
+        P4: Verifier pass — checks synthesis output for missing artifacts.
+        Returns verifier_result with re-query hints for responsible agents.
+        Max 1 round of re-queries.
+        """
+        model = AGENT_MODELS["synthesis"]  # reuse synthesis model tier
+        t0 = time.monotonic()
+
+        # Build verifier prompt from final_report
+        report_text = json.dumps(final_report, indent=2)[:3000]
+        category = final_report.get("category", "unknown")
+        mechanism = final_report.get("mechanism", "")
+
+        user_prompt = f"""RE Analysis Report to verify:
+{report_text}
+
+Target category hint: {category}
+Claimed mechanism: {mechanism}
+
+Check for missing coverage in these areas:
+- CRYPTO: Are crypto algorithms, keys, constants fully identified?
+- CODE_FLOW: Is execution flow described with entry→main logic→behaviors?
+- IOCS: Are all IPs, ports, crypto keys extracted as concrete values?
+
+For each gap, suggest a specific re-query hint for the responsible agent."""
+
+        try:
+            raw_text, usage = curl_llm(
+                model=model,
+                system=SYSTEM_VERIFIER,
+                user=user_prompt,
+                max_tokens=800,
+                label="verifier",
+            )
+            result = parse_json_response(raw_text)
+        except Exception as e:
+            print(f"  [verifier] FAILED: {e}")
+            result = {"verification_status": "error", "missing_coverage": []}
+
+        elapsed = time.monotonic() - t0
+        status = result.get("verification_status", "error")
+        missing = result.get("missing_coverage", [])
+        print(f"  [verifier] done in {elapsed:.1f}s  status={status}  missing={len(missing)}")
+        return result
+
+    def _run_targeted_requery(
+        self, agent_id: str, hint: str, original_slice: dict,
+        original_result: "AgentResult"
+    ) -> "AgentResult":
+        """
+        P4/P9: Re-run a specific agent with a targeted hint about what was missed.
+        Used after verifier identifies gaps.
+        """
+        system_map = {
+            "agent_b": SYSTEM_B,
+            "agent_c": SYSTEM_C,
+            "agent_e": SYSTEM_E,
+        }
+        system = system_map.get(agent_id, SYSTEM_B)
+        model  = AGENT_MODELS.get(agent_id, AGENT_MODELS["agent_b"])
+        t0 = time.monotonic()
+
+        # Prepend the targeted hint to the original prompt
+        original_prompt_builders = {
+            "agent_b": _build_prompt_agent_b,
+            "agent_c": _build_prompt_agent_c,
+            "agent_e": _build_prompt_agent_e,
+        }
+        builder = original_prompt_builders.get(agent_id)
+        if not builder:
+            return original_result
+
+        base_prompt = builder(original_slice)
+        hint_prefix = f"TARGETED RE-QUERY: {hint}\n\nPrevious analysis may have missed this. Focus specifically on it.\n\n"
+        user_prompt = hint_prefix + base_prompt
+
+        try:
+            raw_text, usage = curl_llm(
+                model=model,
+                system=system,
+                user=user_prompt,
+                max_tokens=AGENT_MAX_TOKENS.get(agent_id, 2000),
+                label=f"{agent_id}_requery",
+            )
+            data = parse_json_response(raw_text)
+            status = "ok" if "error" not in data else "error"
+        except Exception as e:
+            print(f"  [{agent_id}_requery] FAILED: {e}")
+            return original_result
+
+        elapsed = time.monotonic() - t0
+        print(f"  [{agent_id}_requery] done in {elapsed:.1f}s")
+        return AgentResult(
+            agent_id=agent_id, model=model, status=status,
+            data=data, raw_text=raw_text, usage=usage, elapsed_s=elapsed,
+        )
+
+    # -----------------------------------------------------------------------
+    # P8: MARBLE-lite meta evaluation
+    # -----------------------------------------------------------------------
+
+    def _compute_meta_eval(
+        self, agent_results: dict[str, "AgentResult"],
+        score_result: dict,
+        final_report: dict,
+    ) -> dict:
+        """
+        P8: MARBLE-lite meta evaluation metrics.
+        Computes:
+          - communication_efficiency: final_score / total_agent_calls
+          - agent_contribution: approximate Shapley-lite (score delta without each agent)
+          - failure_attribution: which agent caused the worst misses
+          - cfged_proxy: P12 — goto/jump keyword count in flow description (lower = better)
+        """
+        total_score = score_result.get("total", 0)
+        total_calls = sum(1 for ar in agent_results.values() if ar.status == "ok")
+        total_calls = max(total_calls, 1)
+
+        comm_efficiency = round(total_score / total_calls, 2)
+
+        # Agent contribution estimate (proxy): how much does each agent's data
+        # appear in the final report's key fields?
+        report_text = json.dumps(final_report).lower()
+        agent_contribution = {}
+
+        for aid, ar in agent_results.items():
+            if ar.status != "ok":
+                agent_contribution[aid] = 0.0
+                continue
+            # Count how many of this agent's key outputs appear in final report
+            agent_data_str = json.dumps(ar.data).lower()
+            # Extract tokens from agent output (nouns/values of length 5+)
+            tokens = re.findall(r'\b[a-z0-9_]{5,20}\b', agent_data_str)
+            unique_tokens = list(dict.fromkeys(tokens))[:30]
+            hits = sum(1 for tok in unique_tokens if tok in report_text)
+            contribution_pct = round(hits / max(len(unique_tokens), 1), 2)
+            agent_contribution[aid] = contribution_pct
+
+        # Normalize contributions to sum to 1.0
+        total_contrib = sum(agent_contribution.values())
+        if total_contrib > 0:
+            agent_contribution = {k: round(v / total_contrib, 3)
+                                   for k, v in agent_contribution.items()}
+
+        # Failure attribution: which required artifacts were missed, and who is responsible
+        failed_agents = [aid for aid, ar in agent_results.items() if ar.status != "ok"]
+        dimension_scores = score_result.get("dimensions", {})
+        failure_attribution = []
+
+        if dimension_scores.get("artifacts", {}).get("points", 30) < 15:
+            # Low artifact score — likely Agent B or C failure
+            for aid in ("agent_b", "agent_c"):
+                if agent_results.get(aid, AgentResult(aid, "", "ok")).status != "ok":
+                    failure_attribution.append(f"{aid} failure → artifact miss")
+        if dimension_scores.get("iocs", {}).get("points", 20) < 10:
+            if agent_results.get("agent_e", AgentResult("agent_e", "", "ok")).status != "ok":
+                failure_attribution.append("agent_e failure → IOC miss")
+        if dimension_scores.get("mechanism", {}).get("points", 30) < 15:
+            failure_attribution.append("mechanism weak → synthesis/agent_c may need re-query")
+
+        # P12: CFGED proxy — count jump/goto keywords in flow description
+        flow_desc = (
+            final_report.get("mechanism", "") + " "
+            + " ".join(f.get("finding", "") for f in final_report.get("findings", []))
+        ).lower()
+        goto_count = (
+            flow_desc.count(" goto ") + flow_desc.count(" jump ") +
+            flow_desc.count(" jmp ") + flow_desc.count(" branch ")
+        )
+
+        return {
+            "communication_efficiency": comm_efficiency,
+            "agent_contribution": agent_contribution,
+            "failure_attribution": failure_attribution,
+            "failed_agents": failed_agents,
+            "cfged_proxy": {"goto_jump_count": goto_count,
+                            "interpretation": "lower = better structural recovery"},
+        }
+
+    # -----------------------------------------------------------------------
     # Scoring
     # -----------------------------------------------------------------------
 
@@ -1345,17 +1781,37 @@ class ParallelREPipeline:
             results.append(r)
 
         # Summary
-        print(f"\n{'='*60}")
-        print("BENCHMARK SUMMARY v3")
-        print("="*60)
+        print(f"\n{'='*70}")
+        print("BENCHMARK SUMMARY v3  (legacy% | v2/100 | cat | mech | art | ioc | fid)")
+        print("="*70)
+        v2_totals = []
         for r in results:
-            sc = r.get("score", 0)
-            bar = "#" * (sc // 10) + "-" * (10 - sc // 10)
+            sc    = r.get("score", 0)
+            bar   = "#" * (sc // 10) + "-" * (10 - sc // 10)
             cat_ok = "CAT-OK" if r.get("category_match") else "CAT-??"
+            sv2   = r.get("score_v2") or {}
+            v2_total = sv2.get("total", "-")
+            v2_dims  = sv2.get("dimensions", {})
+            dim_str  = ""
+            if v2_dims:
+                dim_str = (
+                    f" cat={v2_dims.get('category',{}).get('points','?')}"
+                    f" mch={v2_dims.get('mechanism',{}).get('points','?')}"
+                    f" art={v2_dims.get('artifacts',{}).get('points','?')}"
+                    f" ioc={v2_dims.get('iocs',{}).get('points','?')}"
+                    f" fid={v2_dims.get('structural_fidelity',{}).get('points','?')}"
+                )
+                if isinstance(v2_total, int):
+                    v2_totals.append(v2_total)
+            meta_ev = r.get("meta_eval", {})
+            comm_eff = meta_ev.get("communication_efficiency", "-")
             print(f"  {r['target']:25s} [{bar}] {sc:3d}%  "
-                  f"{cat_ok}  quality={r.get('analysis_quality','?')[:8]}  "
-                  f"conf={r.get('confidence',0):.2f}  "
-                  f"agents={r.get('agent_results',{})}")
+                  f"v2={v2_total:>3}{dim_str}  "
+                  f"{cat_ok}  eff={comm_eff}")
+
+        if v2_totals:
+            avg_v2 = sum(v2_totals) / len(v2_totals)
+            print(f"\n  MEAN score_v2: {avg_v2:.1f}/100  (n={len(v2_totals)})")
 
         out = BASE / "bench_result_v3.json"
         out.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -1631,18 +2087,31 @@ Output raw JSON only."""
 
 
 def _build_prompt_agent_f_batch(batch: dict) -> str:
-    """Build Agent F prompt for one batch of functions."""
+    """Build Agent F Phase 2 prompt for one batch of functions.
+    P3: Includes pre_categorized field from Phase 1 for context-aware naming.
+    """
     fns = batch.get("functions", [])
     fn_blocks = []
     for fn in fns:
+        cat_hint = fn.get("pre_categorized", "")
         header = (f"// {fn['name']} @ {fn['address']} ({fn.get('size',0)}B)"
                   f"  calls={fn.get('imp_calls',[])[:4]}"
                   f"  strings={fn.get('str_refs',[])[:3]}")
         if fn.get("packed_ascii"):
             header += f"  packed={fn['packed_ascii'][:4]}"
+        if cat_hint and cat_hint != "unknown":
+            header += f"  [CATEGORY_HINT: {cat_hint}]"
         fn_blocks.append(f"{header}\n{fn.get('pseudocode','')[:500]}")
 
-    return f"""Analyze these {len(fns)} decompiled functions. For each, infer its purpose.
+    category_note = (
+        "Use the [CATEGORY_HINT] field to guide naming — e.g., a 'crypto' category function "
+        "should be named with crypto context (e.g., rc4_init, xor_decrypt_blob)."
+        if any(fn.get("pre_categorized", "unknown") != "unknown" for fn in fns)
+        else ""
+    )
+
+    return f"""Analyze these {len(fns)} decompiled functions. For each, infer its purpose and assign a descriptive name.
+{category_note}
 
 {chr(10).join(fn_blocks)}
 
@@ -1687,18 +2156,39 @@ def _build_prompt_synthesis(synthesis_doc: dict) -> str:
             )
 
     conflict_text = ""
+    adversarial_block = ""
     if conflicts:
         conflict_text = "\n=== DETECTED CONFLICTS ===\n" + json.dumps(conflicts, indent=2)
+
+        # P5: Adversarial challenge — when conflicts exist, force explicit adjudication
+        adversarial_lines = []
+        for c in conflicts:
+            ctype = c.get("type", "unknown_conflict")
+            claim_a = c.get("agent_a_says") or c.get("agent_b_says") or "claim_A"
+            claim_b = c.get("agent_d_says") or c.get("agent_e_says") or c.get("agent_c_says") or "claim_B"
+            hint    = c.get("resolution_hint", "")
+            adversarial_lines.append(
+                f"CONFLICT [{ctype}]: Claim 1: {claim_a}  |  Claim 2: {claim_b}\n"
+                f"  CHALLENGE: State explicitly which claim is correct and why. Hint: {hint}"
+            )
+        adversarial_block = (
+            "\n=== ADVERSARIAL SCRUTINY (P5) ===\n"
+            "You MUST explicitly adjudicate each conflict below before producing the final report.\n"
+            "For each conflict: state which agent is correct, which is wrong, and the decisive evidence.\n\n"
+            + "\n\n".join(adversarial_lines)
+        )
 
     return f"""Analysis quality: {meta.get('analysis_quality','unknown')}
 Agents succeeded: {meta.get('agents_succeeded',0)}/5
 {conflict_text}
+{adversarial_block}
 
 {chr(10).join(agent_sections)}
 
 Synthesize all agent findings into a final authoritative analysis.
 Resolve all conflicts using the priority rules in your system prompt.
 Note any missing data from failed/timed-out agents.
+{"IMPORTANT: You have conflicts to adjudicate above. Resolve each one explicitly before synthesizing." if conflicts else ""}
 
 Produce final_report JSON with fields:
 summary, category, confidence (0.0-1.0), mechanism, secret_value,
