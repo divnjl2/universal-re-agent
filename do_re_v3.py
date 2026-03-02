@@ -48,42 +48,67 @@ GHIDRA   = Path(os.environ.get("GHIDRA_INSTALL_DIR", r"C:\ghidra"))
 ANALYZE  = GHIDRA / "support" / "analyzeHeadless.bat"
 PROJ_DIR = Path(r"C:\ghidra_tmp")
 
-# Model assignments per agent role
-# L0 (fast/structural): gemini-flash  ~4s
-# L1 (crypto/flow):     gemini-pro    ~7s
-# L2 (synthesis):       gemini-pro-high ~20s
+# ── Local-first model assignments ──────────────────────────────────────────
+# Tier mapping (Compass P11 principle: match model size to task complexity):
+#   worker-4b    → L0: triage, IOC extraction, TTP lookup (pattern matching)
+#   reasoning-14b→ L1: crypto/math analysis (DeepSeek-R1 excels, temp=0.6)
+#   coder-30b    → L2: code flow, function naming, synthesis (Qwen3-Coder)
+#   ag-gemini-*  → fallback when local unavailable / score too low
+#   cloud-sonnet → last resort (quota cost)
 AGENT_MODELS = {
-    "agent_a": "ag-gemini-flash",      # L0 — static structure, imports, PE
-    "agent_b": "ag-gemini-pro",        # L1 — crypto/obfuscation specialist
-    "agent_c": "ag-gemini-pro",        # L1 — code flow analyst
-    "agent_d": "ag-gemini-flash",      # L0 — MITRE TTP mapper
-    "agent_e": "ag-gemini-flash",      # L0 — IOC extractor
-    "agent_f": "ag-gemini-pro",        # L1 — batch function namer (parallel)
-    "synthesis": "ag-gemini-pro-high", # L2 — consensus synthesizer
+    "agent_a": "worker-4b",       # L0 — structural triage (4b: fast, pattern match)
+    "agent_b": "reasoning-14b",   # L1 — crypto/obfusc specialist (R1 math strength)
+    "agent_c": "coder-30b",       # L2 — code flow analyst (Qwen3-Coder primary)
+    "agent_d": "worker-4b",       # L0 — MITRE TTP mapper (structured lookup)
+    "agent_e": "worker-4b",       # L0 — IOC extractor (regex-level, 4b ok)
+    "agent_f": "coder-30b",       # L2 — batch function namer (code understanding)
+    "synthesis": "coder-30b",     # L2 — consensus synthesizer (local, no quota)
+    "verifier": "reasoning-14b",  # L1 — verifier/checker (R1 good at verification)
 }
 
-# Per-agent wall-clock timeout in seconds.
-# 0 = no limit (thinking models: let them reason as long as needed)
-# flash agents get a hard cap, pro/pro-high are uncapped
+# Fallback chains per agent (tried in order if primary fails)
+AGENT_FALLBACKS = {
+    "agent_a": ["ag-gemini-flash", "worker-4b"],
+    "agent_b": ["ag-gemini-pro", "coder-30b", "cloud-sonnet"],
+    "agent_c": ["ag-gemini-pro", "cloud-sonnet"],
+    "agent_d": ["ag-gemini-flash", "worker-4b"],
+    "agent_e": ["ag-gemini-flash", "worker-4b"],
+    "agent_f": ["ag-gemini-pro", "cloud-sonnet"],
+    "synthesis": ["ag-gemini-pro", "ag-sonnet", "cloud-sonnet"],
+    "verifier": ["ag-gemini-pro", "coder-30b"],
+}
+
+# Per-model temperature overrides (Compass: R1 official settings = 0.6/0.95)
+MODEL_TEMPERATURE = {
+    "reasoning-14b": 0.6,   # DeepSeek-R1 official eval settings
+    "coder-30b":     0.15,  # slightly higher than default for naming creativity
+    "worker-4b":     0.05,  # low temp = deterministic structured output
+}
+MODEL_TOP_P = {
+    "reasoning-14b": 0.95,  # R1 official
+}
+
+# Per-agent wall-clock timeout in seconds (0 = no cap)
+# Local models are slower per-token but no quota — give them time
 AGENT_TIMEOUTS = {
-    "agent_a": 90,    # flash: ~4s typical, 90s cap
-    "agent_b": 0,     # pro: reasoning, no cap
-    "agent_c": 0,     # pro: code flow, no cap
-    "agent_d": 90,    # flash: ~4s typical, 90s cap
-    "agent_e": 90,    # flash: ~4s typical, 90s cap
-    "agent_f": 0,     # pro batch: no cap (many sub-requests)
-    "synthesis": 0,   # pro-high: no cap (final reasoning pass)
+    "agent_a": 120,   # worker-4b: fast, 2min cap
+    "agent_b": 0,     # reasoning-14b: thinking, no cap
+    "agent_c": 0,     # coder-30b: code flow, no cap
+    "agent_d": 120,   # worker-4b: TTP lookup, 2min cap
+    "agent_e": 120,   # worker-4b: IOC extraction, 2min cap
+    "agent_f": 0,     # coder-30b batch: no cap
+    "synthesis": 0,   # coder-30b: final report, no cap
 }
 
-# Token budgets (max_tokens for LLM output per agent)
+# Token budgets — local has no cost, be generous where it helps
 AGENT_MAX_TOKENS = {
-    "agent_a": 1000,
-    "agent_b": 2000,
-    "agent_c": 2000,
-    "agent_d": 800,
-    "agent_e": 600,
-    "agent_f": 1500,  # per-batch budget
-    "synthesis": 3000,
+    "agent_a": 1200,
+    "agent_b": 3000,  # R1 reasoning traces are long
+    "agent_c": 2500,
+    "agent_d": 1000,
+    "agent_e": 800,
+    "agent_f": 2000,  # per-batch
+    "synthesis": 4000,
 }
 
 # Conflict resolution priority (higher index = higher authority)
@@ -296,22 +321,29 @@ Output ONLY raw JSON — no markdown, no explanation.
 # ---------------------------------------------------------------------------
 
 def curl_llm(model: str, system: str, user: str, max_tokens: int = 1500,
-             label: str = "", curl_timeout: int = 0) -> tuple[str, dict]:
+             label: str = "", curl_timeout: int = 0,
+             temperature: float | None = None) -> tuple[str, dict]:
     """
     Call LiteLLM via curl subprocess (bypasses Windows proxy CIDR issue).
     curl_timeout=0 means no timeout (let the model think as long as needed).
+    temperature=None → uses MODEL_TEMPERATURE[model] if defined, else 0.1.
     Returns (content_text, usage_dict).
     Raises RuntimeError on failure.
     """
-    payload = {
+    # Per-model temperature (DeepSeek-R1 needs 0.6, worker-4b needs 0.05)
+    temp = temperature if temperature is not None else MODEL_TEMPERATURE.get(model, 0.1)
+    payload: dict = {
         "model": model,
         "messages": [
             {"role": "system", "content": system},
             {"role": "user",   "content": user},
         ],
         "max_tokens": max_tokens,
-        "temperature": 0.1,
+        "temperature": temp,
     }
+    # Per-model top_p (R1 official = 0.95)
+    if model in MODEL_TOP_P:
+        payload["top_p"] = MODEL_TOP_P[model]
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False,
                                      encoding="utf-8") as tf:
         json.dump(payload, tf, ensure_ascii=False)
@@ -346,6 +378,37 @@ def curl_llm(model: str, system: str, user: str, max_tokens: int = 1500,
     if "error" in data:
         raise RuntimeError(f"LiteLLM error [{label}]: {str(data['error'])[:300]}")
     return data["choices"][0]["message"]["content"].strip(), data.get("usage", {})
+
+
+def curl_llm_with_fallback(
+    agent_id: str,
+    system: str,
+    user: str,
+    max_tokens: int = 1500,
+    label: str = "",
+    curl_timeout: int = 0,
+) -> tuple[str, dict, str]:
+    """
+    Call curl_llm with automatic fallback chain from AGENT_FALLBACKS.
+    Returns (content_text, usage_dict, model_used).
+    Falls through the chain on RuntimeError; raises if all fail.
+    """
+    primary = AGENT_MODELS.get(agent_id, "coder-30b")
+    chain = [primary] + AGENT_FALLBACKS.get(agent_id, [])
+    last_exc: Exception = RuntimeError(f"No models in chain for {agent_id}")
+    for model in chain:
+        try:
+            text, usage = curl_llm(
+                model=model, system=system, user=user,
+                max_tokens=max_tokens, label=label, curl_timeout=curl_timeout,
+            )
+            if model != primary:
+                print(f"    [{label}] used fallback model: {model}")
+            return text, usage, model
+        except Exception as e:
+            print(f"    [{label}] model={model} failed: {str(e)[:120]} — trying next")
+            last_exc = e
+    raise last_exc
 
 
 def parse_json_response(text: str) -> dict:
@@ -687,8 +750,9 @@ class ParallelREPipeline:
         if not self._run_ghidra(binary, dump_out, force=force_dump):
             return {"target": name, "error": "ghidra failed"}
 
-        with dump_out.open(encoding="utf-8") as f:
-            dump = json.load(f)
+        # strict=False: Ghidra pseudocode can contain raw control chars (\x00-\x1f)
+        with dump_out.open(encoding="utf-8", errors="replace") as f:
+            dump = json.loads(f.read(), strict=False)
 
         meta    = dump.get("meta", {})
         blobs   = dump.get("data_bytes", [])
@@ -986,15 +1050,15 @@ class ParallelREPipeline:
         # Expected output schema: binary_profile JSON (see design doc section 3, Agent A)
         user_prompt = _build_prompt_agent_a(data_slice)
 
-        # ── LLM CALL ────────────────────────────────────────────────────────
+        # ── LLM CALL (local-first with fallback) ────────────────────────────
         try:
-            raw_text, usage = curl_llm(
-                model=model,
+            raw_text, usage, model = curl_llm_with_fallback(
+                agent_id="agent_a",
                 system=SYSTEM_A,
                 user=user_prompt,
                 max_tokens=AGENT_MAX_TOKENS["agent_a"],
                 label="agent_a",
-                curl_timeout=60,
+                curl_timeout=180,
             )
             data = parse_json_response(raw_text)
             status = "ok" if "error" not in data else "error"
@@ -1038,8 +1102,8 @@ class ParallelREPipeline:
         user_prompt = _build_prompt_agent_b(data_slice)
 
         try:
-            raw_text, usage = curl_llm(
-                model=model,
+            raw_text, usage, model = curl_llm_with_fallback(
+                agent_id="agent_b",
                 system=SYSTEM_B,
                 user=user_prompt,
                 max_tokens=AGENT_MAX_TOKENS["agent_b"],
@@ -1086,8 +1150,8 @@ class ParallelREPipeline:
         pass1_data: dict = {}
         pass1_raw = ""
         try:
-            pass1_raw, usage1 = curl_llm(
-                model=model,
+            pass1_raw, usage1, model = curl_llm_with_fallback(
+                agent_id="agent_c",
                 system=SYSTEM_C,
                 user=user_prompt_p1,
                 max_tokens=AGENT_MAX_TOKENS["agent_c"],
@@ -1136,8 +1200,8 @@ class ParallelREPipeline:
         pass2_data: dict = {}
         pass2_raw = ""
         try:
-            pass2_raw, usage2 = curl_llm(
-                model=model,
+            pass2_raw, usage2, model = curl_llm_with_fallback(
+                agent_id="agent_c",
                 system=SYSTEM_C_PASS2,
                 user=user_prompt_p2,
                 max_tokens=AGENT_MAX_TOKENS["agent_c"],
@@ -1228,13 +1292,13 @@ class ParallelREPipeline:
         user_prompt = _build_prompt_agent_d(data_slice)
 
         try:
-            raw_text, usage = curl_llm(
-                model=model,
+            raw_text, usage, model = curl_llm_with_fallback(
+                agent_id="agent_d",
                 system=SYSTEM_D,
                 user=user_prompt,
                 max_tokens=AGENT_MAX_TOKENS["agent_d"],
                 label="agent_d",
-                curl_timeout=60,
+                curl_timeout=180,
             )
             data = parse_json_response(raw_text)
             status = "ok" if "error" not in data else "error"
@@ -1277,13 +1341,13 @@ class ParallelREPipeline:
         user_prompt = _build_prompt_agent_e(data_slice)
 
         try:
-            raw_text, usage = curl_llm(
-                model=model,
+            raw_text, usage, model = curl_llm_with_fallback(
+                agent_id="agent_e",
                 system=SYSTEM_E,
                 user=user_prompt,
                 max_tokens=AGENT_MAX_TOKENS["agent_e"],
                 label="agent_e",
-                curl_timeout=60,
+                curl_timeout=180,
             )
             data = parse_json_response(raw_text)
             status = "ok" if "error" not in data else "error"
@@ -1447,8 +1511,8 @@ class ParallelREPipeline:
         user_prompt   = _build_prompt_synthesis(synthesis_doc)
 
         try:
-            raw_text, usage = curl_llm(
-                model=model,
+            raw_text, usage, model = curl_llm_with_fallback(
+                agent_id="synthesis",
                 system=SYSTEM_SYNTHESIS,
                 user=user_prompt,
                 max_tokens=AGENT_MAX_TOKENS["synthesis"],
@@ -1700,8 +1764,8 @@ Check for missing coverage in these areas:
 For each gap, suggest a specific re-query hint for the responsible agent."""
 
         try:
-            raw_text, usage = curl_llm(
-                model=model,
+            raw_text, usage, model = curl_llm_with_fallback(
+                agent_id="verifier",
                 system=SYSTEM_VERIFIER,
                 user=user_prompt,
                 max_tokens=800,
@@ -1750,8 +1814,8 @@ For each gap, suggest a specific re-query hint for the responsible agent."""
         user_prompt = hint_prefix + base_prompt
 
         try:
-            raw_text, usage = curl_llm(
-                model=model,
+            raw_text, usage, model = curl_llm_with_fallback(
+                agent_id=agent_id,
                 system=system,
                 user=user_prompt,
                 max_tokens=AGENT_MAX_TOKENS.get(agent_id, 2000),
