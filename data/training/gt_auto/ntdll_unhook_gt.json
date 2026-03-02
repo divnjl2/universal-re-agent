@@ -1,0 +1,58 @@
+{
+  "target": "ntdll_unhook",
+  "category": "obfuscation",
+  "mechanism": "The binary implements a technique to unhook NTDLL by mapping a fresh copy of ntdll.dll from the KnownDlls directory. It compares the .text sections of the loaded and clean copies to detect hooks. The comparison is done by finding the .text section in both images and comparing their contents.",
+  "mechanism_keywords": [
+    "ntdll",
+    "unhook",
+    "knowns",
+    "section",
+    "compare",
+    "text",
+    "mapping"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "\\KnownDlls\\ntdll.dll",
+      "points": 15,
+      "aliases": [
+        "section_name"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "NtOpenSection",
+      "points": 15,
+      "aliases": [
+        "ntopensection"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "NtMapViewOfSection",
+      "points": 15,
+      "aliases": [
+        "ntmapviewofsection"
+      ],
+      "required": true
+    }
+  ],
+  "iocs": [
+    {
+      "type": "domain",
+      "value": "\\KnownDlls\\ntdll.dll",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "load",
+    "map",
+    "compare",
+    "unhook"
+  ],
+  "mechanism_verification": "claimed_key == 'ntdll' and 'unhook' in raw_text.lower()"
+}

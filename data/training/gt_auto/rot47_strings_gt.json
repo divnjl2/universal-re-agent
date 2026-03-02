@@ -1,0 +1,65 @@
+{
+  "target": "rot47_strings",
+  "category": "obfuscation",
+  "mechanism": "The binary uses ROT47 string obfuscation to hide C2 server information, user agent, and mutex names. It defines ROT47 encoded strings and implements decode functions to reveal the original values, which are used for network communication and inter-process synchronization.",
+  "mechanism_keywords": [
+    "rot47",
+    "obfuscation",
+    "string",
+    "decode",
+    "encode",
+    "mutex",
+    "c2"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "192.168.1.100:80",
+      "points": 20,
+      "aliases": [
+        "c2_address"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "Mozilla/5.0",
+      "points": 18,
+      "aliases": [
+        "user_agent"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "NexusMutex2026",
+      "points": 17,
+      "aliases": [
+        "mutex_name"
+      ],
+      "required": true
+    }
+  ],
+  "iocs": [
+    {
+      "type": "ip",
+      "value": "192.168.1.100",
+      "points": 10,
+      "required": true
+    },
+    {
+      "type": "port",
+      "value": "80",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "rot47",
+    "decode",
+    "string",
+    "mutex",
+    "c2"
+  ],
+  "mechanism_verification": "claimed_key in ['192.168.1.100:80', 'Mozilla/5.0', 'NexusMutex2026'] and 'rot47' in raw_text"
+}

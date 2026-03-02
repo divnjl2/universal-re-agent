@@ -1,0 +1,89 @@
+{
+  "target": "control_flow_flat",
+  "category": "obfuscation",
+  "mechanism": "The binary uses a control flow flattening technique with a state machine that transitions through multiple states (INIT, ANTI_DEBUG, DECRYPT, CONNECT, EXECUTE, CLEANUP) to hide the actual execution flow. It XOR-encrypts configuration data with a fixed key (0x7F) and decrypts it at runtime before parsing a command string containing IP and port information.",
+  "mechanism_keywords": [
+    "state",
+    "machine",
+    "xor",
+    "decrypt",
+    "config",
+    "flatten",
+    "anti_debug",
+    "connect"
+  ],
+  "artifacts": [
+    {
+      "type": "constant",
+      "value": "0x7F",
+      "points": 15,
+      "aliases": [
+        "xor key",
+        "encryption key"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "cmd:192.168.1.100:443",
+      "points": 18,
+      "aliases": [
+        "config string",
+        "command string"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "xor_decrypt",
+      "points": 12,
+      "aliases": [
+        "decrypt function",
+        "xor function"
+      ],
+      "required": false
+    },
+    {
+      "type": "string",
+      "value": "192.168.1.100",
+      "points": 10,
+      "aliases": [
+        "ip address",
+        "target ip"
+      ],
+      "required": false
+    },
+    {
+      "type": "string",
+      "value": "443",
+      "points": 10,
+      "aliases": [
+        "port number",
+        "target port"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "ip",
+      "value": "192.168.1.100",
+      "points": 10,
+      "required": true
+    },
+    {
+      "type": "port",
+      "value": "443",
+      "points": 5,
+      "required": false
+    }
+  ],
+  "execution_order": [
+    "init",
+    "antidebug",
+    "decrypt",
+    "connect",
+    "execute"
+  ],
+  "mechanism_verification": "claimed_key == 'xor_decrypt' and 'xor' in raw_text and 'state' in raw_text"
+}

@@ -1,0 +1,58 @@
+{
+  "target": "service_install",
+  "category": "persistence",
+  "mechanism": "The binary installs a Windows service using the Service Control Manager (SCM) API. It opens the SCM, then creates a service with the specified name and path. The service is configured to start automatically.",
+  "mechanism_keywords": [
+    "service",
+    "scm",
+    "install",
+    "persistence",
+    "scmmanager"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "WinUpdateHelper",
+      "points": 15,
+      "aliases": [
+        "service name",
+        "service identifier"
+      ],
+      "required": true
+    },
+    {
+      "type": "api_call",
+      "value": "CreateServiceA",
+      "points": 18,
+      "aliases": [
+        "service creation",
+        "createservice"
+      ],
+      "required": true
+    },
+    {
+      "type": "api_call",
+      "value": "OpenSCManagerA",
+      "points": 12,
+      "aliases": [
+        "scm open",
+        "openscm"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "string",
+      "value": "WinUpdateHelper",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "openscm",
+    "createservice",
+    "closeservicehandle"
+  ],
+  "mechanism_verification": "claimed_key == 'service' and 'WinUpdateHelper' in raw_text"
+}

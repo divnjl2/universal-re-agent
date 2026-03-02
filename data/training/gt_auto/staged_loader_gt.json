@@ -1,0 +1,88 @@
+{
+  "target": "staged_loader",
+  "category": "malware_dropper",
+  "mechanism": "The binary implements a multi-stage payload delivery system. It XOR-decrypts a stage 2 string containing C2 connection details, then decrypts a final payload key using a double-XOR technique with a hardcoded stage key. The stages simulate a C2 command-and-control flow.",
+  "mechanism_keywords": [
+    "stage",
+    "xor",
+    "decrypt",
+    "payload",
+    "connection",
+    "c2",
+    "command",
+    "key"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "STAGE2:connect:10.20.30.40:8080",
+      "points": 20,
+      "aliases": [
+        "stage2 string",
+        "connect string"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": 170,
+      "points": 10,
+      "aliases": [
+        "stage1 key",
+        "xor key"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "ALPHA",
+      "points": 15,
+      "aliases": [
+        "final key",
+        "payload key"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "10.20.30.40",
+      "points": 10,
+      "aliases": [
+        "c2 ip",
+        "ip address"
+      ],
+      "required": false
+    },
+    {
+      "type": "constant",
+      "value": 8080,
+      "points": 10,
+      "aliases": [
+        "c2 port",
+        "port"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "ip",
+      "value": "10.20.30.40",
+      "points": 10,
+      "required": true
+    },
+    {
+      "type": "port",
+      "value": 8080,
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "decrypt",
+    "parse",
+    "decrypt",
+    "print"
+  ],
+  "mechanism_verification": "claimed_key == 'STAGE2:connect:10.20.30.40:8080' and 'ALPHA' in raw_text"
+}

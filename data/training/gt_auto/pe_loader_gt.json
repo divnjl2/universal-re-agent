@@ -1,0 +1,76 @@
+{
+  "target": "pe_loader",
+  "category": "injector",
+  "mechanism": "The binary acts as a PE loader that embeds a minimal PE stub in its code and loads it into memory. It parses the embedded PE header to extract the preferred base address, allocates memory at that address, and copies the PE data. The loader then calculates the relocation delta and would fix up base relocations and IAT entries. This is a common technique for in-memory execution of payloads.",
+  "mechanism_keywords": [
+    "pe",
+    "loader",
+    "memory",
+    "injection",
+    "relocation",
+    "base",
+    "execute",
+    "stub"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "pe_loader",
+      "points": 15,
+      "aliases": [
+        "target",
+        "name"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "main",
+      "points": 10,
+      "aliases": [
+        "entry",
+        "function"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "MZ",
+      "points": 10,
+      "aliases": [
+        "signature",
+        "magic"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "PE",
+      "points": 10,
+      "aliases": [
+        "signature",
+        "magic"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "IMAGE_NT_SIGNATURE",
+      "points": 10,
+      "aliases": [
+        "pe",
+        "signature"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [],
+  "execution_order": [
+    "embed",
+    "parse",
+    "allocate",
+    "copy",
+    "relocate"
+  ],
+  "mechanism_verification": "claimed_key in ['pe', 'loader', 'memory', 'injection'] and 'pe' in raw_text and 'loader' in raw_text"
+}

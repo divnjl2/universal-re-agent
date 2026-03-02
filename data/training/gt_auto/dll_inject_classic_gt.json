@@ -1,0 +1,76 @@
+{
+  "target": "dll_inject_classic",
+  "category": "injector",
+  "mechanism": "The binary implements a classic DLL injection technique by first finding the target process ID using CreateToolhelp32Snapshot, then opening the process with OpenProcess. It allocates memory in the target process with VirtualAllocEx, writes the DLL path using WriteProcessMemory, and finally creates a remote thread with CreateRemoteThread to execute LoadLibraryA.",
+  "mechanism_keywords": [
+    "dll",
+    "inject",
+    "process",
+    "remote",
+    "thread",
+    "memory",
+    "snapshot",
+    "allocate"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "notepad.exe",
+      "points": 15,
+      "aliases": [
+        "target process",
+        "target executable"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "C:\\evil.dll",
+      "points": 15,
+      "aliases": [
+        "dll path",
+        "target dll"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "CreateToolhelp32Snapshot",
+      "points": 12,
+      "aliases": [
+        "snapshot function",
+        "process snapshot"
+      ],
+      "required": false
+    },
+    {
+      "type": "function",
+      "value": "OpenProcess",
+      "points": 10,
+      "aliases": [
+        "open process",
+        "process handle"
+      ],
+      "required": false
+    },
+    {
+      "type": "function",
+      "value": "VirtualAllocEx",
+      "points": 10,
+      "aliases": [
+        "allocate memory",
+        "remote alloc"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [],
+  "execution_order": [
+    "find",
+    "open",
+    "allocate",
+    "write",
+    "inject"
+  ],
+  "mechanism_verification": "claimed_key == 'CreateToolhelp32Snapshot' and 'inject' in raw_text and 'process' in raw_text"
+}

@@ -1,0 +1,64 @@
+{
+  "target": "nt_query_process",
+  "category": "anti_debug",
+  "mechanism": "The binary uses NtQueryInformationProcess with ProcessDebugPort to detect if a debugger is attached. If a debugger is present, the debug port value will be non-zero, indicating the presence of a debugger. If no debugger is detected, it prints the C2 server address and port.",
+  "mechanism_keywords": [
+    "ntqueryinformationprocess",
+    "processdebugport",
+    "debugger",
+    "attached",
+    "c2",
+    "address",
+    "port"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "192.168.50.1",
+      "points": 15,
+      "aliases": [
+        "c2_address"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "7777",
+      "points": 10,
+      "aliases": [
+        "c2_port"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "NtQueryInformationProcess",
+      "points": 15,
+      "aliases": [
+        "ntqueryinformationprocess"
+      ],
+      "required": true
+    }
+  ],
+  "iocs": [
+    {
+      "type": "ip",
+      "value": "192.168.50.1",
+      "points": 10,
+      "required": true
+    },
+    {
+      "type": "port",
+      "value": "7777",
+      "points": 5,
+      "required": false
+    }
+  ],
+  "execution_order": [
+    "load",
+    "query",
+    "check",
+    "c2"
+  ],
+  "mechanism_verification": "claimed_key == 'ntqueryinformationprocess' and 'debugger' in raw_text.lower()"
+}

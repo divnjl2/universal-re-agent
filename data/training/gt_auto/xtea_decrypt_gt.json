@@ -1,0 +1,79 @@
+{
+  "target": "xtea_decrypt",
+  "category": "network_c2",
+  "mechanism": "The binary XTEA-decrypts a hardcoded configuration block containing C2 server information (IP and port) using a static 128-bit key. The decrypted data is used to establish C2 communication.",
+  "mechanism_keywords": [
+    "xtea",
+    "decrypt",
+    "c2",
+    "config",
+    "network",
+    "port",
+    "ip",
+    "key"
+  ],
+  "artifacts": [
+    {
+      "type": "constant",
+      "value": "0x11223344",
+      "points": 15,
+      "aliases": [
+        "xtea key",
+        "encryption key"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "10.13.37.1",
+      "points": 18,
+      "aliases": [
+        "c2 ip",
+        "server ip"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "4444",
+      "points": 12,
+      "aliases": [
+        "c2 port",
+        "port number"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "xtea_decrypt_block",
+      "points": 10,
+      "aliases": [
+        "decrypt function",
+        "xtea function"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "ip",
+      "value": "10.13.37.1",
+      "points": 10,
+      "required": true
+    },
+    {
+      "type": "port",
+      "value": "4444",
+      "points": 5,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "decrypt",
+    "config",
+    "c2",
+    "network",
+    "port"
+  ],
+  "mechanism_verification": "claimed_key == '0x11223344' and 'xtea' in raw_text and '10.13.37.1' in raw_text"
+}

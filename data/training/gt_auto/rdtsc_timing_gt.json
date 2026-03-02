@@ -1,0 +1,76 @@
+{
+  "target": "rdtsc_timing",
+  "category": "anti_debug",
+  "mechanism": "The binary uses RDTSC (Read Time-Stamp Counter) to detect debuggers by measuring the time delta between two points in execution. It executes a dummy work loop and measures the CPU cycles before and after, comparing the delta to a threshold. If the delta exceeds the threshold, it indicates a debugger is present due to timing anomalies.",
+  "mechanism_keywords": [
+    "rdtsc",
+    "timing",
+    "debugger",
+    "anomaly",
+    "threshold",
+    "cycles",
+    "measure",
+    "detect"
+  ],
+  "artifacts": [
+    {
+      "type": "constant",
+      "value": "10000000",
+      "points": 15,
+      "aliases": [
+        "threshold"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "192.168.1.50:8080",
+      "points": 18,
+      "aliases": [
+        "c2",
+        "commandandcontrol"
+      ],
+      "required": true
+    },
+    {
+      "type": "operation",
+      "value": "t2 - t1",
+      "points": 10,
+      "aliases": [
+        "delta"
+      ],
+      "required": false
+    },
+    {
+      "type": "function",
+      "value": "__rdtsc",
+      "points": 12,
+      "aliases": [
+        "rdtsc"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "ip",
+      "value": "192.168.1.50",
+      "points": 5,
+      "required": true
+    },
+    {
+      "type": "port",
+      "value": "8080",
+      "points": 5,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "measure",
+    "work",
+    "compare",
+    "detect",
+    "output"
+  ],
+  "mechanism_verification": "claimed_key == 'rdtsc timing' and 'rdtsc' in raw_text and '10000000' in raw_text"
+}

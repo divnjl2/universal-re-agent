@@ -1,0 +1,73 @@
+{
+  "target": "cfg_guard_bypass",
+  "category": "obfuscation",
+  "mechanism": "The binary simulates a CFG bypass by allocating writable memory, storing a function pointer there, initially pointing to a legitimate function, then overwriting it with a shellcode address. This demonstrates how an attacker might bypass CFG by overwriting a function pointer in writable memory to point to a non-CFG-valid target.",
+  "mechanism_keywords": [
+    "cfg",
+    "bypass",
+    "pointer",
+    "overwrite",
+    "function",
+    "memory",
+    "vtable",
+    "indirect"
+  ],
+  "artifacts": [
+    {
+      "type": "function",
+      "value": "simulated_shellcode",
+      "points": 15,
+      "aliases": [
+        "shellcode",
+        "indirect call target"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "legitimate_function",
+      "points": 12,
+      "aliases": [
+        "valid target",
+        "cfg function"
+      ],
+      "required": true
+    },
+    {
+      "type": "api_call",
+      "value": "VirtualAlloc",
+      "points": 10,
+      "aliases": [
+        "memory allocation",
+        "rw memory"
+      ],
+      "required": false
+    },
+    {
+      "type": "constant",
+      "value": "PAGE_READWRITE",
+      "points": 10,
+      "aliases": [
+        "memory protection",
+        "rw flag"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "function",
+      "value": "simulated_shellcode",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "alloc",
+    "init",
+    "overwrite",
+    "call",
+    "bypass"
+  ],
+  "mechanism_verification": "claimed_key in ['cfg', 'bypass', 'pointer', 'overwrite', 'function', 'memory', 'vtable', 'indirect'] and 'cfg' in raw_text and 'bypass' in raw_text"
+}

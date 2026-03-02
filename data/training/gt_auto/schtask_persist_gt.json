@@ -1,0 +1,59 @@
+{
+  "target": "schtask_persist",
+  "category": "persistence",
+  "mechanism": "The binary creates a scheduled task using schtasks.exe to achieve persistence. It constructs a command to create a task that executes the binary on logon events. The task is registered via the Windows Task Scheduler API.",
+  "mechanism_keywords": [
+    "schtasks",
+    "scheduled",
+    "task",
+    "persistence",
+    "logon"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "WindowsUpdateTask",
+      "points": 15,
+      "aliases": [
+        "task name",
+        "scheduled task name"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "schtasks /create /tn \"%s\" /tr \"%s\" /sc onlogon /f",
+      "points": 18,
+      "aliases": [
+        "schtasks command",
+        "task creation command"
+      ],
+      "required": true
+    },
+    {
+      "type": "api_call",
+      "value": "CreateProcessA",
+      "points": 12,
+      "aliases": [
+        "create process",
+        "process creation"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "string",
+      "value": "WindowsUpdateTask",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "getmodulefilename",
+    "build command",
+    "createprocess",
+    "waitforsingleobject"
+  ],
+  "mechanism_verification": "claimed_key == 'schtasks' and 'WindowsUpdateTask' in raw_text"
+}

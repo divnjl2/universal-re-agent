@@ -1,0 +1,69 @@
+{
+  "target": "icmp_tunnel",
+  "category": "network_c2",
+  "mechanism": "The binary uses ICMP echo requests as a covert channel to communicate with a command and control server. It embeds a beacon string containing the hostname into the ICMP payload and waits for a reply to verify connectivity.",
+  "mechanism_keywords": [
+    "icmp",
+    "covert",
+    "channel",
+    "beacon",
+    "payload",
+    "echo",
+    "c2"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "192.168.1.250",
+      "points": 15,
+      "aliases": [
+        "c2 ip",
+        "server ip"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "BEACON:",
+      "points": 10,
+      "aliases": [
+        "beacon prefix"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "IcmpSendEcho",
+      "points": 18,
+      "aliases": [
+        "icmp send echo"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "icmp_tunnel.c",
+      "points": 10,
+      "aliases": [
+        "source file"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "ip",
+      "value": "192.168.1.250",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "initialize",
+    "build",
+    "send",
+    "wait",
+    "parse"
+  ],
+  "mechanism_verification": "claimed_key == 'icmp' and 'covert' in raw_text and 'channel' in raw_text"
+}

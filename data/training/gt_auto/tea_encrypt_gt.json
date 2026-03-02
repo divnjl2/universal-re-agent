@@ -1,0 +1,93 @@
+{
+  "target": "tea_encrypt",
+  "category": "crypto_analysis",
+  "mechanism": "The binary implements the TEA (Tiny Encryption Algorithm) with a 128-bit key to encrypt and decrypt data. It uses a standard TEA algorithm with 32 rounds of encryption and decryption, processing data in 64-bit blocks. The key is hardcoded in the binary and used for both encryption and decryption.",
+  "mechanism_keywords": [
+    "tea",
+    "encrypt",
+    "decrypt",
+    "key",
+    "rounds",
+    "delta",
+    "algorithm"
+  ],
+  "artifacts": [
+    {
+      "type": "constant",
+      "value": "0xDEADBEEF",
+      "points": 15,
+      "aliases": [
+        "tea key"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "0xCAFEBABE",
+      "points": 15,
+      "aliases": [
+        "tea key"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "0x12345678",
+      "points": 15,
+      "aliases": [
+        "tea key"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "0xABCDEF01",
+      "points": 15,
+      "aliases": [
+        "tea key"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "C2CONFIG",
+      "points": 10,
+      "aliases": [
+        "plaintext"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "tea_encrypt",
+      "points": 10,
+      "aliases": [
+        "encryption function"
+      ],
+      "required": false
+    },
+    {
+      "type": "function",
+      "value": "tea_decrypt",
+      "points": 10,
+      "aliases": [
+        "decryption function"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "key",
+      "value": "0xDEADBEEFCAFEBABE12345678ABCDEF01",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "load",
+    "encrypt",
+    "decrypt"
+  ],
+  "mechanism_verification": "claimed_key == '0xDEADBEEFCAFEBABE12345678ABCDEF01' and 'tea' in raw_text and 'encrypt' in raw_text and 'decrypt' in raw_text"
+}

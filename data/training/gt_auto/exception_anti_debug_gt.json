@@ -1,0 +1,69 @@
+{
+  "target": "exception_anti_debug",
+  "category": "anti_debug",
+  "mechanism": "The binary implements an anti-debugging technique using Structured Exception Handling (SEH) to detect the presence of a debugger. It triggers an INT3 exception via __debugbreak() and checks whether the SEH handler is invoked, which would not happen if a debugger is attached.",
+  "mechanism_keywords": [
+    "exception",
+    "debug",
+    "seh",
+    "debugbreak",
+    "anti",
+    "int3",
+    "handler",
+    "windows"
+  ],
+  "artifacts": [
+    {
+      "type": "constant",
+      "value": "10.0.0.1:9999",
+      "points": 15,
+      "aliases": [
+        "c2 ip",
+        "c2 server"
+      ],
+      "required": true
+    },
+    {
+      "type": "api_call",
+      "value": "__debugbreak",
+      "points": 12,
+      "aliases": [
+        "debug break",
+        "int3"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "EXCEPTION_EXECUTE_HANDLER",
+      "points": 10,
+      "aliases": [
+        "exception handler",
+        "seh handler"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "ip",
+      "value": "10.0.0.1",
+      "points": 10,
+      "required": true
+    },
+    {
+      "type": "port",
+      "value": "9999",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "trigger",
+    "exception",
+    "seh",
+    "check",
+    "c2"
+  ],
+  "mechanism_verification": "claimed_key == '10.0.0.1:9999' and 'exception' in raw_text and 'debug' in raw_text"
+}

@@ -1,0 +1,52 @@
+{
+  "target": "ror13_hash",
+  "category": "obfuscation",
+  "mechanism": "The binary implements a custom ROR13 (rotate right 13 bits) hash function to obfuscate API names. It computes hashes for API names like CreateFileA, WriteFile, and CloseHandle, comparing them against pre-computed expected values to verify the hashing algorithm.",
+  "mechanism_keywords": [
+    "ror13",
+    "hash",
+    "api",
+    "obfuscation",
+    "rotate",
+    "compute",
+    "compare"
+  ],
+  "artifacts": [
+    {
+      "type": "constant",
+      "value": "0x7C0017A5",
+      "points": 15,
+      "aliases": [
+        "hash_createfilea"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "0xF68799A4",
+      "points": 15,
+      "aliases": [
+        "hash_writefile"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "0xDB9B7ADC",
+      "points": 15,
+      "aliases": [
+        "hash_closehandle"
+      ],
+      "required": true
+    }
+  ],
+  "iocs": [],
+  "execution_order": [
+    "ror13",
+    "hash",
+    "api",
+    "compute",
+    "compare"
+  ],
+  "mechanism_verification": "claimed_key in ['0x7C0017A5', '0xF68799A4', '0xDB9B7ADC'] and 'ror13' in raw_text"
+}

@@ -19,11 +19,11 @@ GT_AUTO  = TRAINING / "gt_auto"
 if str(RE_DIR) not in sys.path:
     sys.path.insert(0, str(RE_DIR))
 
-LITELLM         = "http://192.168.1.136:4000/v1/chat/completions"
-API_KEY         = "sk-nexus-litellm-2026"
-GEMINI_MODEL    = "ag-gemini-flash"   # 1M context, fast
-CODER_MODEL     = "coder-30b"         # fallback for validation
-BATCH_SIZE      = 25                  # targets per Gemini call
+LITELLM         = "http://localhost:8080/v1/chat/completions"  # coder-30b direct
+API_KEY         = "no-key"
+GEMINI_MODEL    = "local"             # coder-30b local endpoint
+CODER_MODEL     = "local"
+BATCH_SIZE      = 3                   # 3 targets × 4k chars = ~12k ctx, fast output
 
 # Known targets already in ground_truth_v2.py
 KNOWN_TARGETS = {
@@ -62,6 +62,7 @@ Rules:
 - mechanism_verification: a Python boolean expression string that checks if an analyst found the key mechanism
   (uses variables: claimed_key, raw_text — where raw_text is the full analysis text)
 
+CRITICAL: Start your response with [ immediately. Do not write any text before [.
 Output ONLY a JSON array, one object per target:
 [
   {
@@ -79,7 +80,7 @@ Output ONLY a JSON array, one object per target:
     "mechanism_verification": "..."
   }
 ]
-No markdown, no explanation. Raw JSON array only."""
+No markdown, no explanation, no preamble. Start with [ immediately."""
 
 
 def read_source(target: str) -> str:
@@ -112,7 +113,7 @@ def call_gemini_batch(targets_sources: list[dict], batch_num: int) -> list[dict]
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user",   "content": user_prompt},
         ],
-        "max_tokens": 16000,   # ~600 tokens per target × 25 + buffer
+        "max_tokens": 3000,    # ~900 tokens per target x 3 + buffer
         "temperature": 0.1,
     }
 
@@ -123,18 +124,25 @@ def call_gemini_batch(targets_sources: list[dict], batch_num: int) -> list[dict]
         tf_path = tf.name
 
     t0 = time.monotonic()
-    try:
-        r = subprocess.run(
-            ["curl", "-s", "-X", "POST", LITELLM,
-             "-H", f"Authorization: Bearer {API_KEY}",
-             "-H", "Content-Type: application/json",
-             "--data-binary", f"@{tf_path}",
-             "--max-time", "180"],
-            capture_output=True, text=True, timeout=190,
-        )
-    finally:
-        try: os.unlink(tf_path)
-        except: pass
+    for attempt in range(3):
+        try:
+            r = subprocess.run(
+                ["curl", "-s", "-X", "POST", LITELLM,
+                 "-H", f"Authorization: Bearer {API_KEY}",
+                 "-H", "Content-Type: application/json",
+                 "--data-binary", f"@{tf_path}",
+                 "--max-time", "300"],
+                capture_output=True, text=True, timeout=310,
+            )
+            if r.returncode == 0 and '"choices"' in r.stdout:
+                break
+            print(f"  [auto_gt] Batch {batch_num} attempt {attempt+1} failed rc={r.returncode}, retry...")
+            time.sleep(5)
+        except Exception as e:
+            print(f"  [auto_gt] Batch {batch_num} attempt {attempt+1} exception: {e}, retry...")
+            time.sleep(5)
+    try: os.unlink(tf_path)
+    except: pass
 
     elapsed = time.monotonic() - t0
 
@@ -204,13 +212,17 @@ def generate_python_module(all_gts: list[dict], output_path: Path):
         'GROUND_TRUTH_AUTO = {',
     ]
 
+    def pystr(s: str) -> str:
+        """Escape a string for safe use in a Python string literal."""
+        return s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "")
+
     for gt in all_gts:
         target = gt.get("target", "unknown")
         category = gt.get("category", "unknown")
-        mechanism = gt.get("mechanism", "").replace('"', '\\"')
+        mechanism = pystr(gt.get("mechanism", ""))
         kw = gt.get("mechanism_keywords", [])
         exec_order = gt.get("execution_order", [])
-        mech_verify = gt.get("mechanism_verification", "True").replace('"', '\\"')
+        mech_verify = pystr(gt.get("mechanism_verification", "True"))
 
         lines.append(f'    "{target}": GroundTruthV2(')
         lines.append(f'        category="{category}",')
@@ -218,7 +230,7 @@ def generate_python_module(all_gts: list[dict], output_path: Path):
         lines.append(f'        mechanism_keywords={json.dumps(kw)},')
         lines.append(f'        artifacts=[')
         for a in gt.get("artifacts", []):
-            val   = str(a.get("value", "")).replace('"', '\\"')
+            val   = pystr(str(a.get("value", "")))
             atype = a.get("type", "string")
             pts   = a.get("points", 10)
             aliases = a.get("aliases", [])
@@ -227,7 +239,7 @@ def generate_python_module(all_gts: list[dict], output_path: Path):
         lines.append(f'        ],')
         lines.append(f'        iocs=[')
         for ioc in gt.get("iocs", []):
-            val   = str(ioc.get("value", "")).replace('"', '\\"')
+            val   = pystr(str(ioc.get("value", "")))
             itype = ioc.get("type", "key")
             pts   = ioc.get("points", 5)
             req   = ioc.get("required", False)
@@ -240,7 +252,7 @@ def generate_python_module(all_gts: list[dict], output_path: Path):
 
     lines.append('}')
     output_path.write_text("\n".join(lines), encoding="utf-8")
-    print(f"  [auto_gt] Python module → {output_path}")
+    print(f"  [auto_gt] Python module -> {output_path}")
 
 
 def run_auto_gt(
@@ -317,7 +329,7 @@ def run_auto_gt(
         if ok:
             save_gt_json(gt, target)
             saved.append(gt)
-            print(f"  [auto_gt] ✓ {target}: {gt['category']}, {len(gt.get('artifacts',[]))} artifacts, {len(gt.get('iocs',[]))} iocs")
+            print(f"  [auto_gt] OK {target}: {gt['category']}, {len(gt.get('artifacts',[]))} artifacts, {len(gt.get('iocs',[]))} iocs")
         else:
             print(f"  [auto_gt] ✗ {target}: INVALID — {errs}")
             failed.append(target)

@@ -1,0 +1,77 @@
+{
+  "target": "parent_pid_check",
+  "category": "anti_debug",
+  "mechanism": "The binary checks the parent process ID of the current process to detect sandbox environments. It uses Windows API functions like CreateToolhelp32Snapshot and Process32First to enumerate processes and determine the parent process name. If the parent process is not explorer.exe or svchost.exe, it assumes a sandbox environment and exits.",
+  "mechanism_keywords": [
+    "parent",
+    "process",
+    "sandbox",
+    "anti",
+    "debug",
+    "check",
+    "windows",
+    "api"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "parent_pid_check",
+      "points": 15,
+      "aliases": [
+        "target",
+        "name"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "get_parent_pid",
+      "points": 12,
+      "aliases": [
+        "parent",
+        "pid"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "get_process_name",
+      "points": 12,
+      "aliases": [
+        "process",
+        "name"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "explorer.exe",
+      "points": 10,
+      "aliases": [
+        "parent",
+        "process",
+        "name"
+      ],
+      "required": false
+    },
+    {
+      "type": "constant",
+      "value": "svchost.exe",
+      "points": 10,
+      "aliases": [
+        "parent",
+        "process",
+        "name"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [],
+  "execution_order": [
+    "get",
+    "parent",
+    "check",
+    "exit"
+  ],
+  "mechanism_verification": "claimed_key in ['get_parent_pid', 'get_process_name'] and 'parent' in raw_text and 'sandbox' in raw_text"
+}

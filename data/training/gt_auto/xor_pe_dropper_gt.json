@@ -1,0 +1,73 @@
+{
+  "target": "xor_pe_dropper",
+  "category": "malware_dropper",
+  "mechanism": "The binary XOR-decrypts a PE stub using a static key (0x5A) and writes it to a temporary file before attempting to execute it. The decryption is performed in-memory before writing to disk.",
+  "mechanism_keywords": [
+    "xor",
+    "decrypt",
+    "dropper",
+    "pe",
+    "execute",
+    "memory",
+    "write",
+    "file"
+  ],
+  "artifacts": [
+    {
+      "type": "constant",
+      "value": "0x5A",
+      "points": 15,
+      "aliases": [
+        "xor key",
+        "key"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "svchost.exe",
+      "points": 10,
+      "aliases": [
+        "dropped name",
+        "filename"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "xor_decrypt",
+      "points": 12,
+      "aliases": [
+        "decrypt function",
+        "xor function"
+      ],
+      "required": false
+    },
+    {
+      "type": "constant",
+      "value": "0x17",
+      "points": 10,
+      "aliases": [
+        "decrypted byte",
+        "first byte"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "domain",
+      "value": "svchost.exe",
+      "points": 5,
+      "required": false
+    }
+  ],
+  "execution_order": [
+    "decrypt",
+    "write",
+    "execute",
+    "memory",
+    "file"
+  ],
+  "mechanism_verification": "claimed_key == '0x5a' and 'xor' in raw_text and 'decrypt' in raw_text"
+}

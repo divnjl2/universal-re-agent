@@ -1,0 +1,70 @@
+{
+  "target": "mutex_singleton",
+  "category": "persistence",
+  "mechanism": "The binary uses a global mutex to enforce singleton behavior, ensuring only one instance runs at a time. It also checks the number of self-instances to detect potential sandboxing or replication.",
+  "mechanism_keywords": [
+    "mutex",
+    "singleton",
+    "anti-rerun",
+    "instance",
+    "check",
+    "process",
+    "global"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "Global\\NexusProtect2026",
+      "points": 15,
+      "aliases": [
+        "mutex name",
+        "global mutex"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": 2,
+      "points": 10,
+      "aliases": [
+        "max instances",
+        "limit"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "CreateMutexA",
+      "points": 18,
+      "aliases": [
+        "create mutex"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "count_self_instances",
+      "points": 12,
+      "aliases": [
+        "count instances"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "mutex",
+      "value": "Global\\NexusProtect2026",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "initialize",
+    "create",
+    "check",
+    "validate",
+    "cleanup"
+  ],
+  "mechanism_verification": "claimed_key == 'mutex' and 'singleton' in raw_text and 'anti-rerun' in raw_text"
+}

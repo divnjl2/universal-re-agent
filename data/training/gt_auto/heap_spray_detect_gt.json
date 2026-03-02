@@ -1,0 +1,101 @@
+{
+  "target": "heap_spray_detect",
+  "category": "anti_debug",
+  "mechanism": "The binary detects sandbox environments by checking heap size and known heap spray addresses. It calculates approximate heap size using VirtualQuery on committed private memory regions and compares against a minimum threshold. It also checks specific memory addresses that are commonly sprayed in sandbox environments using VirtualQuery to detect accessible memory regions.",
+  "mechanism_keywords": [
+    "heap",
+    "spray",
+    "sandbox",
+    "memory",
+    "virtualquery",
+    "detect",
+    "commit",
+    "region"
+  ],
+  "artifacts": [
+    {
+      "type": "constant",
+      "value": "1048576",
+      "points": 15,
+      "aliases": [
+        "min_heap_size",
+        "minimum_heap_size"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "0x0c0c0c0c",
+      "points": 10,
+      "aliases": [
+        "spray_address",
+        "heap_spray"
+      ],
+      "required": false
+    },
+    {
+      "type": "string",
+      "value": "0x0d0d0d0d",
+      "points": 10,
+      "aliases": [
+        "spray_address",
+        "heap_spray"
+      ],
+      "required": false
+    },
+    {
+      "type": "string",
+      "value": "0x0e0e0e0e",
+      "points": 10,
+      "aliases": [
+        "spray_address",
+        "heap_spray"
+      ],
+      "required": false
+    },
+    {
+      "type": "string",
+      "value": "0x08080808",
+      "points": 10,
+      "aliases": [
+        "spray_address",
+        "heap_spray"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "ip",
+      "value": "0x0c0c0c0c",
+      "points": 5,
+      "required": false
+    },
+    {
+      "type": "ip",
+      "value": "0x0d0d0d0d",
+      "points": 5,
+      "required": false
+    },
+    {
+      "type": "ip",
+      "value": "0x0e0e0e0e",
+      "points": 5,
+      "required": false
+    },
+    {
+      "type": "ip",
+      "value": "0x08080808",
+      "points": 5,
+      "required": false
+    }
+  ],
+  "execution_order": [
+    "check",
+    "heap",
+    "spray",
+    "memory",
+    "detect"
+  ],
+  "mechanism_verification": "claimed_key in ['heap', 'spray', 'sandbox', 'memory', 'virtualquery'] and 'heap' in raw_text and 'spray' in raw_text and 'memory' in raw_text"
+}

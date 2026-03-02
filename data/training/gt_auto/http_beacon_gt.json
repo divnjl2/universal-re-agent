@@ -1,0 +1,79 @@
+{
+  "target": "http_beacon",
+  "category": "network_c2",
+  "mechanism": "The binary acts as an HTTP beacon by connecting to a C2 server using WinINet APIs. It constructs a URL with hostname and PID, opens an internet connection with a custom user agent, and performs an HTTP GET request to the C2 URL. It reads the response and checks for specific commands like SLEEP.",
+  "mechanism_keywords": [
+    "http",
+    "beacon",
+    "c2",
+    "wininet",
+    "internetopen",
+    "internetopenurl",
+    "response",
+    "command"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "http://192.168.200.1/beacon",
+      "points": 20,
+      "aliases": [
+        "c2_url",
+        "beacon_url"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      "points": 15,
+      "aliases": [
+        "user_agent",
+        "http_header"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "60000",
+      "points": 10,
+      "aliases": [
+        "interval",
+        "sleep"
+      ],
+      "required": false
+    },
+    {
+      "type": "string",
+      "value": "SLEEP",
+      "points": 10,
+      "aliases": [
+        "command",
+        "response"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "ip",
+      "value": "192.168.200.1",
+      "points": 10,
+      "required": true
+    },
+    {
+      "type": "domain",
+      "value": "192.168.200.1",
+      "points": 5,
+      "required": false
+    }
+  ],
+  "execution_order": [
+    "connect",
+    "open",
+    "url",
+    "read",
+    "response"
+  ],
+  "mechanism_verification": "claimed_key in ['http', 'beacon', 'c2', 'wininet', 'internetopen', 'internetopenurl', 'response', 'command'] and 'http' in raw_text and 'c2' in raw_text and 'wininet' in raw_text"
+}

@@ -1,0 +1,64 @@
+{
+  "target": "output_debug_trick",
+  "category": "anti_debug",
+  "mechanism": "The binary uses the OutputDebugString API to detect a debugger. When a debugger is attached, the API internally calls SetLastError(0) after delivering the string. By setting a known error value before calling the API and checking the error after, it can determine if a debugger is present. If the error is 0, a debugger is likely attached.",
+  "mechanism_keywords": [
+    "outputdebugstring",
+    "debugger",
+    "attached",
+    "setlasterror",
+    "getlasterror",
+    "timing",
+    "probe"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "172.16.0.1",
+      "points": 15,
+      "aliases": [
+        "c2_address"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "6666",
+      "points": 10,
+      "aliases": [
+        "c2_port"
+      ],
+      "required": true
+    },
+    {
+      "type": "api_call",
+      "value": "OutputDebugStringA",
+      "points": 15,
+      "aliases": [
+        "outputdebugstring"
+      ],
+      "required": true
+    }
+  ],
+  "iocs": [
+    {
+      "type": "ip",
+      "value": "172.16.0.1",
+      "points": 10,
+      "required": true
+    },
+    {
+      "type": "port",
+      "value": "6666",
+      "points": 5,
+      "required": false
+    }
+  ],
+  "execution_order": [
+    "set",
+    "call",
+    "check",
+    "c2"
+  ],
+  "mechanism_verification": "claimed_key == 'outputdebugstring' and 'debugger' in raw_text.lower()"
+}

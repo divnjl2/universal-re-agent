@@ -1,0 +1,62 @@
+{
+  "target": "stack_string_obfusc",
+  "category": "obfuscation",
+  "mechanism": "The binary constructs strings on the stack character-by-character to evade static analysis. It builds 'kernel32.dll', 'CreateFileA', and '192.168.1.200' using explicit array assignments. These stack strings are then used to dynamically load a library and resolve an API function.",
+  "mechanism_keywords": [
+    "stack",
+    "string",
+    "construct",
+    "obfuscation",
+    "library",
+    "resolve",
+    "api",
+    "character"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "kernel32.dll",
+      "points": 15,
+      "aliases": [
+        "dll name",
+        "library name"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "CreateFileA",
+      "points": 15,
+      "aliases": [
+        "api name",
+        "function name"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "192.168.1.200",
+      "points": 15,
+      "aliases": [
+        "c2 ip",
+        "ip address"
+      ],
+      "required": true
+    }
+  ],
+  "iocs": [
+    {
+      "type": "ip",
+      "value": "192.168.1.200",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "construct",
+    "load",
+    "resolve",
+    "print"
+  ],
+  "mechanism_verification": "claimed_key in ['kernel32.dll', 'CreateFileA'] and '192.168.1.200' in raw_text"
+}

@@ -1,0 +1,101 @@
+{
+  "target": "token_impersonate",
+  "category": "persistence",
+  "mechanism": "The binary performs token impersonation to escalate privileges by finding a SYSTEM process (winlogon.exe or lsass.exe), enabling the SeDebugPrivilege, opening its token, duplicating it, and then impersonating the token to gain access to SYSTEM-level resources. This allows privilege escalation without creating new processes.",
+  "mechanism_keywords": [
+    "token",
+    "impersonate",
+    "privilege",
+    "system",
+    "escalate",
+    "process",
+    "duplicate"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "winlogon.exe",
+      "points": 10,
+      "aliases": [
+        "target process"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "lsass.exe",
+      "points": 10,
+      "aliases": [
+        "target process"
+      ],
+      "required": true
+    },
+    {
+      "type": "api_call",
+      "value": "ImpersonateLoggedOnUser",
+      "points": 20,
+      "aliases": [
+        "impersonation api"
+      ],
+      "required": true
+    },
+    {
+      "type": "api_call",
+      "value": "OpenProcessToken",
+      "points": 15,
+      "aliases": [
+        "token api"
+      ],
+      "required": false
+    },
+    {
+      "type": "api_call",
+      "value": "DuplicateTokenEx",
+      "points": 15,
+      "aliases": [
+        "token api"
+      ],
+      "required": false
+    },
+    {
+      "type": "constant",
+      "value": "SeDebugPrivilege",
+      "points": 10,
+      "aliases": [
+        "privilege"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "find_pid",
+      "points": 10,
+      "aliases": [
+        "process finder"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "domain",
+      "value": "winlogon.exe",
+      "points": 5,
+      "required": true
+    },
+    {
+      "type": "domain",
+      "value": "lsass.exe",
+      "points": 5,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "find",
+    "enable",
+    "open",
+    "duplicate",
+    "impersonate"
+  ],
+  "mechanism_verification": "claimed_key == 'winlogon.exe' and 'token' in raw_text and 'impersonate' in raw_text and 'privilege' in raw_text"
+}

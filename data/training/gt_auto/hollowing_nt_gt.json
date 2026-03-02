@@ -1,0 +1,89 @@
+{
+  "target": "hollowing_nt",
+  "category": "injector",
+  "mechanism": "The binary performs process hollowing by creating a suspended target process, querying its PEB to find the image base, unmapping the original image using NtUnmapViewOfSection, and then allocating new memory at the preferred base to write the new PE headers and sections. It uses NT APIs dynamically resolved from ntdll.dll to perform the core operations.",
+  "mechanism_keywords": [
+    "hollowing",
+    "ntapi",
+    "peb",
+    "process",
+    "unmap",
+    "allocate",
+    "resolve",
+    "ntdll"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "ntdll.dll",
+      "points": 15,
+      "aliases": [
+        "module",
+        "library"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "notepad.exe",
+      "points": 10,
+      "aliases": [
+        "target",
+        "process"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "NtQueryInformationProcess",
+      "points": 10,
+      "aliases": [
+        "function",
+        "ntapi"
+      ],
+      "required": false
+    },
+    {
+      "type": "string",
+      "value": "NtUnmapViewOfSection",
+      "points": 10,
+      "aliases": [
+        "function",
+        "ntapi"
+      ],
+      "required": false
+    },
+    {
+      "type": "string",
+      "value": "NtWriteVirtualMemory",
+      "points": 10,
+      "aliases": [
+        "function",
+        "ntapi"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "domain",
+      "value": "ntdll.dll",
+      "points": 5,
+      "required": true
+    },
+    {
+      "type": "domain",
+      "value": "notepad.exe",
+      "points": 5,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "create",
+    "suspend",
+    "query",
+    "unmap",
+    "allocate"
+  ],
+  "mechanism_verification": "claimed_key in ['hollowing', 'ntapi', 'peb', 'process', 'unmap', 'allocate'] and 'hollowing' in raw_text and 'ntapi' in raw_text and 'process' in raw_text"
+}

@@ -1,0 +1,83 @@
+{
+  "target": "pipe_c2",
+  "category": "network_c2",
+  "mechanism": "The binary implements a named pipe C2 server that listens for client connections on a predefined pipe name. It creates a named pipe using CreateNamedPipeA, waits for a client to connect, and then reads commands from the pipe. It responds to commands with an ACK message. The server handles commands like EXIT to terminate the connection. This is a common technique for C2 communication in Windows environments.",
+  "mechanism_keywords": [
+    "pipe",
+    "c2",
+    "server",
+    "communication",
+    "named",
+    "client",
+    "command",
+    "response"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "pipe_c2",
+      "points": 15,
+      "aliases": [
+        "target",
+        "name"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "\\\\.\\pipe\\NexusC2",
+      "points": 15,
+      "aliases": [
+        "pipe",
+        "name"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "main",
+      "points": 10,
+      "aliases": [
+        "entry",
+        "function"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "EXIT",
+      "points": 10,
+      "aliases": [
+        "command",
+        "exit"
+      ],
+      "required": false
+    },
+    {
+      "type": "constant",
+      "value": "ACK",
+      "points": 10,
+      "aliases": [
+        "response",
+        "ack"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "domain",
+      "value": "\\\\.\\pipe\\NexusC2",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "create",
+    "connect",
+    "read",
+    "respond",
+    "close"
+  ],
+  "mechanism_verification": "claimed_key in ['pipe', 'c2', 'server', 'communication'] and 'pipe' in raw_text and 'c2' in raw_text"
+}

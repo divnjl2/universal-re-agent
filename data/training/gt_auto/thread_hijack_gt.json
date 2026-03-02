@@ -1,0 +1,94 @@
+{
+  "target": "thread_hijack",
+  "category": "injector",
+  "mechanism": "The binary performs thread context hijacking by finding a target process (explorer.exe), locating its thread, suspending it, retrieving its context, modifying the instruction pointer (RIP) to point to injected shellcode, and then resuming the thread. This allows code execution in the context of another process.",
+  "mechanism_keywords": [
+    "thread",
+    "context",
+    "hijack",
+    "process",
+    "suspend",
+    "resume",
+    "shellcode"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "explorer.exe",
+      "points": 10,
+      "aliases": [
+        "target process"
+      ],
+      "required": true
+    },
+    {
+      "type": "api_call",
+      "value": "OpenThread",
+      "points": 15,
+      "aliases": [
+        "thread api"
+      ],
+      "required": true
+    },
+    {
+      "type": "api_call",
+      "value": "GetThreadContext",
+      "points": 15,
+      "aliases": [
+        "context api"
+      ],
+      "required": true
+    },
+    {
+      "type": "api_call",
+      "value": "SetThreadContext",
+      "points": 15,
+      "aliases": [
+        "context api"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "0xCC",
+      "points": 10,
+      "aliases": [
+        "shellcode"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "find_pid",
+      "points": 10,
+      "aliases": [
+        "process finder"
+      ],
+      "required": false
+    },
+    {
+      "type": "function",
+      "value": "find_thread",
+      "points": 10,
+      "aliases": [
+        "thread finder"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "domain",
+      "value": "explorer.exe",
+      "points": 5,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "find",
+    "suspend",
+    "modify",
+    "resume"
+  ],
+  "mechanism_verification": "claimed_key == 'explorer.exe' and 'thread' in raw_text and 'hijack' in raw_text and 'context' in raw_text"
+}

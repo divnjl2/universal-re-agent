@@ -1,0 +1,70 @@
+{
+  "target": "keylogger_hook",
+  "category": "anti_debug",
+  "mechanism": "The binary installs a low-level keyboard hook to capture keystrokes from all applications. It logs the keystrokes to a file and runs for a specified duration before removing the hook.",
+  "mechanism_keywords": [
+    "hook",
+    "keyboard",
+    "keystroke",
+    "log",
+    "file",
+    "process",
+    "message"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "C:\\temp\\keys.log",
+      "points": 15,
+      "aliases": [
+        "log path",
+        "output file"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": 5000,
+      "points": 10,
+      "aliases": [
+        "timeout",
+        "duration"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "SetWindowsHookExA",
+      "points": 18,
+      "aliases": [
+        "set hook"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "LowLevelKeyboardProc",
+      "points": 12,
+      "aliases": [
+        "hook proc"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "file",
+      "value": "C:\\temp\\keys.log",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "initialize",
+    "create",
+    "install",
+    "log",
+    "cleanup"
+  ],
+  "mechanism_verification": "claimed_key == 'hook' and 'keyboard' in raw_text and 'log' in raw_text"
+}

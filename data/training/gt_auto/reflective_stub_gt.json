@@ -1,0 +1,71 @@
+{
+  "target": "reflective_stub",
+  "category": "injector",
+  "mechanism": "The binary implements a reflective loader that loads a stub DLL from embedded bytes in memory. It parses the PE headers to determine the preferred base and image size, allocates memory at that base, and copies the PE image. It demonstrates the pattern for reflective loading, including memory allocation, PE parsing, and section copying, but does not fully implement import resolution or relocations.",
+  "mechanism_keywords": [
+    "reflective",
+    "loader",
+    "memory",
+    "pe",
+    "dll",
+    "allocate",
+    "copy",
+    "stub"
+  ],
+  "artifacts": [
+    {
+      "type": "constant",
+      "value": "4096",
+      "points": 10,
+      "aliases": [
+        "page_size"
+      ],
+      "required": false
+    },
+    {
+      "type": "string",
+      "value": "MZ",
+      "points": 12,
+      "aliases": [
+        "dos_header"
+      ],
+      "required": false
+    },
+    {
+      "type": "function",
+      "value": "VirtualAlloc",
+      "points": 15,
+      "aliases": [
+        "virtualalloc"
+      ],
+      "required": false
+    },
+    {
+      "type": "function",
+      "value": "memcpy",
+      "points": 12,
+      "aliases": [
+        "memcpy"
+      ],
+      "required": false
+    },
+    {
+      "type": "constant",
+      "value": "0x180000000",
+      "points": 10,
+      "aliases": [
+        "preferred_base"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [],
+  "execution_order": [
+    "parse",
+    "allocate",
+    "copy",
+    "stub",
+    "load"
+  ],
+  "mechanism_verification": "claimed_key == 'reflective loading' and 'virtualalloc' in raw_text and 'embedded_dll' in raw_text"
+}

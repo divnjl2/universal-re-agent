@@ -1,0 +1,73 @@
+{
+  "target": "dns_c2",
+  "category": "network_c2",
+  "mechanism": "The binary implements a DNS-based command and control channel by querying a TXT record from a hardcoded domain. It uses the DnsQuery_A API to fetch DNS records and prints any TXT records found, which would contain C2 commands in a real scenario.",
+  "mechanism_keywords": [
+    "dns",
+    "c2",
+    "txt",
+    "query",
+    "record",
+    "domain",
+    "api",
+    "windows"
+  ],
+  "artifacts": [
+    {
+      "type": "domain",
+      "value": "c2.evil-domain.com",
+      "points": 15,
+      "aliases": [
+        "c2 domain",
+        "c2 server"
+      ],
+      "required": true
+    },
+    {
+      "type": "api_call",
+      "value": "DnsQuery_A",
+      "points": 12,
+      "aliases": [
+        "dns query",
+        "dns api"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "DNS_TYPE_TEXT",
+      "points": 10,
+      "aliases": [
+        "txt record",
+        "dns type"
+      ],
+      "required": false
+    },
+    {
+      "type": "function",
+      "value": "DnsRecordListFree",
+      "points": 10,
+      "aliases": [
+        "dns free",
+        "dns cleanup"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "domain",
+      "value": "c2.evil-domain.com",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "query",
+    "dns",
+    "txt",
+    "print",
+    "cleanup"
+  ],
+  "mechanism_verification": "claimed_key == 'c2.evil-domain.com' and 'dns' in raw_text and 'txt' in raw_text"
+}

@@ -1,0 +1,66 @@
+{
+  "target": "env_check_sandbox",
+  "category": "anti_debug",
+  "mechanism": "The binary performs sandbox detection by checking for environment variables, usernames, and computer names that are commonly set in sandboxed environments. It uses GetEnvironmentVariableA to retrieve these values and compares them against known sandbox identifiers.",
+  "mechanism_keywords": [
+    "sandbox",
+    "env",
+    "variable",
+    "username",
+    "computername",
+    "check",
+    "detect",
+    "windows"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "SBIE",
+      "points": 10,
+      "aliases": [
+        "sandbox env",
+        "virtualbox"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "VBOX",
+      "points": 10,
+      "aliases": [
+        "virtualbox",
+        "vmware"
+      ],
+      "required": false
+    },
+    {
+      "type": "string",
+      "value": "VMWARE",
+      "points": 10,
+      "aliases": [
+        "vmware",
+        "vm"
+      ],
+      "required": false
+    },
+    {
+      "type": "string",
+      "value": "CUCKOO",
+      "points": 10,
+      "aliases": [
+        "cuckoo",
+        "sandbox"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [],
+  "execution_order": [
+    "check",
+    "env",
+    "username",
+    "computername",
+    "detect"
+  ],
+  "mechanism_verification": "claimed_key in ['SBIE', 'VBOX', 'VMWARE', 'CUCKOO'] and 'env' in raw_text and 'check' in raw_text"
+}

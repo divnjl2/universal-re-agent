@@ -1,0 +1,75 @@
+{
+  "target": "base64_decode",
+  "category": "crypto_analysis",
+  "mechanism": "The binary decodes a base64 encoded payload using a lookup table, then XOR decrypts the result with a fixed key (0x37). The base64 decoding function processes 4 characters at a time and converts them to 3 bytes, while the XOR decryption applies the key to each byte of the decoded data.",
+  "mechanism_keywords": [
+    "base64",
+    "decode",
+    "xor",
+    "decrypt",
+    "payload",
+    "b64",
+    "lookup",
+    "table"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "SGVsbG8gZnJvbSBDMjogMTkyLjE2OC4xMDAuNTo0NDQ0",
+      "points": 15,
+      "aliases": [
+        "b64 payload",
+        "base64 string",
+        "encoded data"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "0x37",
+      "points": 12,
+      "aliases": [
+        "xor key",
+        "decryption key",
+        "key"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "b64_char_to_val",
+      "points": 10,
+      "aliases": [
+        "b64 lookup",
+        "base64 table"
+      ],
+      "required": false
+    },
+    {
+      "type": "constant",
+      "value": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/",
+      "points": 10,
+      "aliases": [
+        "b64 table",
+        "base64 table"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "string",
+      "value": "SGVsbG8gZnJvbSBDMjogMTkyLjE2OC4xMDAuNTo0NDQ0",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "decode",
+    "xor",
+    "print",
+    "decrypt",
+    "output"
+  ],
+  "mechanism_verification": "claimed_key in ['base64', 'decode', 'xor', 'decrypt', 'payload', 'b64', 'lookup', 'table'] and 'base64' in raw_text and 'decode' in raw_text"
+}

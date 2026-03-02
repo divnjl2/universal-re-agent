@@ -1,0 +1,82 @@
+{
+  "target": "process_hollow",
+  "category": "injector",
+  "mechanism": "The binary implements process hollowing by creating a suspended target process, resolving NtQueryInformationProcess to get the PEB base address, and then stubbing the steps to unmap and remap the PE image at the preferred base. It uses Windows API calls like CreateProcessA, GetModuleHandleA, GetProcAddress, and NtQueryInformationProcess to achieve process injection.",
+  "mechanism_keywords": [
+    "process",
+    "peb",
+    "ntqueryinformationprocess",
+    "hollowing",
+    "injector",
+    "createprocess",
+    "ntdll",
+    "suspended"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "svchost.exe",
+      "points": 15,
+      "aliases": [
+        "target",
+        "executable"
+      ],
+      "required": true
+    },
+    {
+      "type": "api_call",
+      "value": "NtQueryInformationProcess",
+      "points": 18,
+      "aliases": [
+        "ntqueryinformationprocess",
+        "ntqip"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "0",
+      "points": 10,
+      "aliases": [
+        "processbasicinformation"
+      ],
+      "required": false
+    },
+    {
+      "type": "function",
+      "value": "CreateProcessA",
+      "points": 12,
+      "aliases": [
+        "createprocess",
+        "createprocessa"
+      ],
+      "required": false
+    },
+    {
+      "type": "function",
+      "value": "GetModuleHandleA",
+      "points": 12,
+      "aliases": [
+        "getmodulehandle",
+        "getmodulehandlea"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "string",
+      "value": "svchost.exe",
+      "points": 5,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "create",
+    "query",
+    "hollow",
+    "resume",
+    "cleanup"
+  ],
+  "mechanism_verification": "claimed_key == 'process hollowing' and 'ntqueryinformationprocess' in raw_text and 'svchost.exe' in raw_text"
+}

@@ -1,0 +1,56 @@
+{
+  "target": "startup_copy",
+  "category": "persistence",
+  "mechanism": "The binary implements startup folder persistence by copying itself to the Windows startup folder. It retrieves the APPDATA path, constructs the full startup path, gets its own module path, and then uses CopyFileA to install itself to the startup location.",
+  "mechanism_keywords": [
+    "startup",
+    "persistence",
+    "copy",
+    "install",
+    "appdata",
+    "module",
+    "path",
+    "folder"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "update.exe",
+      "points": 10,
+      "aliases": [
+        "startup name",
+        "filename"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "Microsoft\\Windows\\Start Menu\\Programs\\Startup\\",
+      "points": 15,
+      "aliases": [
+        "startup subpath",
+        "startup folder"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "update.exe",
+      "points": 10,
+      "aliases": [
+        "startup name",
+        "filename"
+      ],
+      "required": true
+    }
+  ],
+  "iocs": [],
+  "execution_order": [
+    "get",
+    "build",
+    "get",
+    "copy",
+    "print"
+  ],
+  "mechanism_verification": "claimed_key == 'update.exe' and 'Microsoft\\Windows\\Start Menu\\Programs\\Startup\\' in raw_text"
+}

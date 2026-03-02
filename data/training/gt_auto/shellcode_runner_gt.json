@@ -1,0 +1,59 @@
+{
+  "target": "shellcode_runner",
+  "category": "injector",
+  "mechanism": "The binary allocates executable memory using VirtualAlloc with PAGE_EXECUTE_READWRITE, copies shellcode into it, and then executes it. The shellcode is a simple x64 NOP sled followed by a RET instruction.",
+  "mechanism_keywords": [
+    "shellcode",
+    "virtualalloc",
+    "execute",
+    "memory",
+    "rwx"
+  ],
+  "artifacts": [
+    {
+      "type": "constant",
+      "value": 12,
+      "points": 10,
+      "aliases": [
+        "shellcode size",
+        "bytes"
+      ],
+      "required": true
+    },
+    {
+      "type": "api_call",
+      "value": "VirtualAlloc",
+      "points": 15,
+      "aliases": [
+        "memory allocation",
+        "virtual alloc"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": 134217728,
+      "points": 12,
+      "aliases": [
+        "page protection",
+        "memory flags"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "constant",
+      "value": 12,
+      "points": 5,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "virtualalloc",
+    "memcpy",
+    "virtualprotect",
+    "execute"
+  ],
+  "mechanism_verification": "claimed_key == 'shellcode' and 'VirtualAlloc' in raw_text"
+}

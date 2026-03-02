@@ -1,0 +1,59 @@
+{
+  "target": "reg_run_persist",
+  "category": "persistence",
+  "mechanism": "The binary establishes persistence by writing the full path of itself to both the HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run and HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce registry keys under the value name 'WindowsUpdate'. It uses RegOpenKeyExA and RegSetValueExA to perform the registry operations.",
+  "mechanism_keywords": [
+    "registry",
+    "run",
+    "persistence",
+    "windows",
+    "currentversion",
+    "key_set_value",
+    "regsetvalue"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "WindowsUpdate",
+      "points": 15,
+      "aliases": [
+        "reg_value_name"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+      "points": 18,
+      "aliases": [
+        "run_key"
+      ],
+      "required": true
+    },
+    {
+      "type": "string",
+      "value": "Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+      "points": 18,
+      "aliases": [
+        "runonce_key"
+      ],
+      "required": true
+    }
+  ],
+  "iocs": [
+    {
+      "type": "string",
+      "value": "WindowsUpdate",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "registry",
+    "run",
+    "persistence",
+    "setvalue",
+    "key"
+  ],
+  "mechanism_verification": "claimed_key == 'WindowsUpdate' and 'registry' in raw_text and 'persistence' in raw_text"
+}

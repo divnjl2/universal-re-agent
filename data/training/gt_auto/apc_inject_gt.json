@@ -1,0 +1,74 @@
+{
+  "target": "apc_inject",
+  "category": "injector",
+  "mechanism": "The binary finds a target process (explorer.exe) by PID, allocates memory in its address space, writes shellcode there, and queues APCs to all threads of the target process to execute the shellcode. It uses CreateToolhelp32Snapshot and QueueUserAPC for thread enumeration and APC queuing.",
+  "mechanism_keywords": [
+    "apc",
+    "queue",
+    "inject",
+    "thread",
+    "process",
+    "shellcode",
+    "snapshot",
+    "virtualalloc"
+  ],
+  "artifacts": [
+    {
+      "type": "string",
+      "value": "explorer.exe",
+      "points": 15,
+      "aliases": [
+        "target process",
+        "process name"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "0x90, 0x90, 0xCC",
+      "points": 18,
+      "aliases": [
+        "shellcode",
+        "nop sled",
+        "int3"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "QueueUserAPC",
+      "points": 12,
+      "aliases": [
+        "apc function",
+        "userapc"
+      ],
+      "required": false
+    },
+    {
+      "type": "api_call",
+      "value": "CreateToolhelp32Snapshot",
+      "points": 10,
+      "aliases": [
+        "snapshot api",
+        "toolhelp32"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [
+    {
+      "type": "constant",
+      "value": "0x90, 0x90, 0xCC",
+      "points": 10,
+      "required": true
+    }
+  ],
+  "execution_order": [
+    "find",
+    "alloc",
+    "write",
+    "queue",
+    "execute"
+  ],
+  "mechanism_verification": "claimed_key in ['apc', 'queue', 'inject', 'thread', 'process', 'shellcode', 'snapshot', 'virtualalloc'] and 'apc' in raw_text and 'queue' in raw_text"
+}

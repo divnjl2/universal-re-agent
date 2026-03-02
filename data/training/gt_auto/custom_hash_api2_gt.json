@@ -1,0 +1,73 @@
+{
+  "target": "custom_hash_api2",
+  "category": "obfuscation",
+  "mechanism": "The binary implements a custom API name hashing mechanism using the djb2 algorithm to resolve API names at runtime. It pre-computes hashes for known APIs and uses these hashes to look up API names in a lookup table, avoiding direct string comparisons.",
+  "mechanism_keywords": [
+    "hash",
+    "djb2",
+    "api",
+    "resolve",
+    "lookup",
+    "string",
+    "comparison",
+    "obfuscation"
+  ],
+  "artifacts": [
+    {
+      "type": "constant",
+      "value": "0x1A2F7C3B",
+      "points": 15,
+      "aliases": [
+        "hash value",
+        "VirtualAllocEx hash"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "0x9E4D2A11",
+      "points": 15,
+      "aliases": [
+        "WriteProcessMemory hash"
+      ],
+      "required": true
+    },
+    {
+      "type": "constant",
+      "value": "0x7F3C8B2E",
+      "points": 15,
+      "aliases": [
+        "CreateRemoteThread hash"
+      ],
+      "required": true
+    },
+    {
+      "type": "function",
+      "value": "djb2_hash",
+      "points": 12,
+      "aliases": [
+        "hash function",
+        "djb2 function"
+      ],
+      "required": false
+    },
+    {
+      "type": "function",
+      "value": "resolve_by_hash",
+      "points": 10,
+      "aliases": [
+        "resolve function",
+        "lookup function"
+      ],
+      "required": false
+    }
+  ],
+  "iocs": [],
+  "execution_order": [
+    "hash",
+    "resolve",
+    "lookup",
+    "compare"
+  ],
+  "mechanism_verification": "claimed_key == 'djb2_hash' and 'hash' in raw_text and 'resolve' in raw_text"
+}
