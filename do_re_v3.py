@@ -238,6 +238,27 @@ Categories: crypto, injection, anti_analysis, network, vm_dispatch, utility, unk
 Output ONLY raw JSON — no markdown, no explanation.
 """
 
+# P2: Pass 2 system prompt — focused refinement on key functions identified in pass 1
+SYSTEM_C_PASS2 = """\
+You are an expert code flow analyst performing PASS 2 — deep refinement.
+Pass 1 already identified the entry function and top critical functions.
+Your job: perform focused deep analysis of ONLY those key functions.
+
+Rules:
+- Reconstruct the EXACT execution path through the binary (entry → init → payload → exit)
+- For each critical function: explain mechanism in precise technical terms
+- Identify ALL anti-analysis triggers with their detection logic
+- Decode any obfuscated values (packed integers, XOR'd strings, stack-built strings)
+- Produce a concrete execution_summary: what does this binary DO, step by step?
+
+COVERAGE MANDATE (P6): Your exclusive domain is code flow and behavioral analysis.
+- DO NOT decode cryptographic keys — that is Agent B's domain.
+- DO NOT extract IOC strings as concrete values — that is Agent E's domain.
+- FOCUS: execution graph, behavioral sequence, hidden triggers, mechanism explanation.
+
+Output ONLY raw JSON — no markdown, no explanation.
+"""
+
 SYSTEM_VERIFIER = """\
 You are a reverse engineering verifier — the "checker" in a reverser-checker loop (P4).
 You receive a synthesized RE report and a list of ground-truth artifact categories to verify.
@@ -1049,47 +1070,142 @@ class ParallelREPipeline:
     def _run_agent_c(self, data_slice: dict) -> AgentResult:
         """
         Agent C — Code Flow Analyst (coder-30b)
-        Traces execution flow, identifies main logic, finds hidden behaviors.
-        Output: flow_analysis JSON
+        P2: Two-pass hybrid approach (+16.2% per Compass research):
+          Pass 1: Ghidra baseline — find entry point, identify top 5 critical functions,
+                  map execution graph, surface hidden behaviors
+          Pass 2: LLM refinement — focused deep-dive on critical functions from pass 1,
+                  reconstruct exact execution path, decode obfuscation, explain mechanism
+        Final output: merged flow_analysis (pass2 enriches pass1)
         """
         model = AGENT_MODELS["agent_c"]
         t0 = time.monotonic()
-        print(f"    [agent_c] starting ({model})...")
+        print(f"    [agent_c] starting pass1 ({model})...")
 
-        # ── PROMPT CONSTRUCTION ──────────────────────────────────────────────
-        # TODO: build prompt from data_slice fields:
-        #   - functions[]: name, address, size, pseudocode[:1200], str_refs, imp_calls, packed_ascii
-        # Expected output schema: flow_analysis JSON (see design doc section 3, Agent C)
-        user_prompt = _build_prompt_agent_c(data_slice)
-
+        # ── PASS 1: Ghidra baseline — broad sweep ────────────────────────────
+        user_prompt_p1 = _build_prompt_agent_c(data_slice)
+        pass1_data: dict = {}
+        pass1_raw = ""
         try:
-            raw_text, usage = curl_llm(
+            pass1_raw, usage1 = curl_llm(
                 model=model,
                 system=SYSTEM_C,
-                user=user_prompt,
+                user=user_prompt_p1,
                 max_tokens=AGENT_MAX_TOKENS["agent_c"],
-                label="agent_c",
+                label="agent_c_pass1",
             )
-            data = parse_json_response(raw_text)
-            status = "ok" if "error" not in data else "error"
+            pass1_data = parse_json_response(pass1_raw)
+            t_p1 = time.monotonic() - t0
+            behaviors_p1 = len(pass1_data.get("hidden_behaviors", []))
+            print(f"    [agent_c] pass1 done in {t_p1:.1f}s  hidden_behaviors={behaviors_p1}")
         except Exception as e:
-            raw_text = ""
-            usage = {}
-            data = {}
-            status = "error"
-            print(f"    [agent_c] FAILED: {e}")
+            print(f"    [agent_c] pass1 FAILED: {e} — returning single-pass result")
             return AgentResult(
-                agent_id="agent_c", model=model, status=status,
-                data=data, raw_text=raw_text, usage=usage,
+                agent_id="agent_c", model=model, status="error",
+                data={}, raw_text="", usage={},
                 elapsed_s=time.monotonic()-t0, error_msg=str(e)[:200],
             )
 
+        # ── PASS 2: LLM refinement — deep-dive on critical functions ─────────
+        # Extract top 5 critical functions identified in pass 1
+        critical_fns_p1: list[str] = pass1_data.get("critical_functions", [])
+        entry_fn: str = pass1_data.get("entry_function", "")
+
+        # Build refined function list: entry + critical_fns from pass1, with full pseudocode
+        all_fns = {f["name"]: f for f in data_slice.get("functions", [])}
+        focus_names: list[str] = []
+        if entry_fn:
+            focus_names.append(entry_fn)
+        for fn_name in (critical_fns_p1 if isinstance(critical_fns_p1, list) else []):
+            if isinstance(fn_name, str) and fn_name not in focus_names:
+                focus_names.append(fn_name)
+            elif isinstance(fn_name, dict):
+                nm = fn_name.get("name", "")
+                if nm and nm not in focus_names:
+                    focus_names.append(nm)
+        focus_names = focus_names[:5]  # cap at 5
+
+        # Fall back: if pass1 didn't identify specific functions, use top-ranked from slice
+        if not focus_names:
+            focus_names = [f["name"] for f in data_slice.get("functions", [])[:5]]
+
+        user_prompt_p2 = _build_prompt_agent_c_pass2(
+            data_slice, focus_names, pass1_data
+        )
+
+        print(f"    [agent_c] starting pass2 — focusing on: {focus_names[:3]}...")
+        pass2_data: dict = {}
+        pass2_raw = ""
+        try:
+            pass2_raw, usage2 = curl_llm(
+                model=model,
+                system=SYSTEM_C_PASS2,
+                user=user_prompt_p2,
+                max_tokens=AGENT_MAX_TOKENS["agent_c"],
+                label="agent_c_pass2",
+            )
+            pass2_data = parse_json_response(pass2_raw)
+            t_p2 = time.monotonic() - t0 - t_p1
+            behaviors_p2 = len(pass2_data.get("hidden_behaviors", []))
+            print(f"    [agent_c] pass2 done in {t_p2:.1f}s  hidden_behaviors={behaviors_p2}")
+        except Exception as e:
+            print(f"    [agent_c] pass2 FAILED: {e} — returning pass1 result")
+            # Pass1 result is still valid — degrade gracefully
+            elapsed = time.monotonic() - t0
+            return AgentResult(
+                agent_id="agent_c", model=model, status="ok",
+                data=pass1_data, raw_text=pass1_raw, usage=usage1, elapsed_s=elapsed,
+            )
+
+        # ── MERGE: pass2 enriches pass1 ─────────────────────────────────────
+        # pass2 wins on: execution_summary, hidden_behaviors (deduped union), anti_analysis_triggers
+        # pass1 wins on: execution_graph structure (broader coverage)
+        merged = dict(pass1_data)
+        # Execution summary: pass2 is deeper
+        if pass2_data.get("execution_summary") or pass2_data.get("main_logic_summary"):
+            merged["execution_summary"] = (
+                pass2_data.get("execution_summary")
+                or pass2_data.get("main_logic_summary")
+            )
+        # Hidden behaviors: union of both passes (deduplicate by behavior text)
+        seen_behaviors: set[str] = set()
+        combined_behaviors: list[dict] = []
+        for beh in (pass1_data.get("hidden_behaviors", []) +
+                    pass2_data.get("hidden_behaviors", [])):
+            key = str(beh.get("behavior", beh))[:60]
+            if key not in seen_behaviors:
+                seen_behaviors.add(key)
+                combined_behaviors.append(beh)
+        merged["hidden_behaviors"] = combined_behaviors
+        # Anti-analysis: union
+        triggers_p1 = pass1_data.get("anti_analysis_triggers", [])
+        triggers_p2 = pass2_data.get("anti_analysis_triggers", [])
+        merged["anti_analysis_triggers"] = list({
+            str(t)[:80]: t for t in (triggers_p1 + triggers_p2)
+        }.values())
+        # Function analysis from pass2
+        if pass2_data.get("function_analyses"):
+            merged["function_analyses_pass2"] = pass2_data["function_analyses"]
+        # Execution graph: keep pass1 (broader) but note pass2 refinement
+        if pass2_data.get("execution_graph"):
+            merged["execution_graph_refined"] = pass2_data["execution_graph"]
+        # Confidence: max of both passes
+        c1 = pass1_data.get("flow_confidence", 0.5)
+        c2 = pass2_data.get("flow_confidence", 0.5)
+        merged["flow_confidence"] = max(
+            c1 if isinstance(c1, (int, float)) else 0.5,
+            c2 if isinstance(c2, (int, float)) else 0.5,
+        )
+        merged["_pass2_applied"] = True
+        merged["_focus_functions"] = focus_names
+
         elapsed = time.monotonic() - t0
-        behaviors = len(data.get("hidden_behaviors", []))
-        print(f"    [agent_c] done in {elapsed:.1f}s  hidden_behaviors={behaviors}")
+        final_behaviors = len(merged.get("hidden_behaviors", []))
+        print(f"    [agent_c] two-pass complete in {elapsed:.1f}s  "
+              f"merged_behaviors={final_behaviors}  pass2_applied=True")
+
         return AgentResult(
-            agent_id="agent_c", model=model, status=status,
-            data=data, raw_text=raw_text, usage=usage, elapsed_s=elapsed,
+            agent_id="agent_c", model=model, status="ok",
+            data=merged, raw_text=pass2_raw, usage=usage2, elapsed_s=elapsed,
         )
 
     def _run_agent_d(self, data_slice: dict) -> AgentResult:
@@ -2007,6 +2123,67 @@ Produce flow_analysis JSON with fields:
 entry_function, main_logic_summary, execution_graph (list of {{from, to, condition}}),
 hidden_behaviors (list of {{behavior, evidence, confidence}}), critical_functions,
 dead_code, anti_analysis_triggers, flow_confidence.
+Output raw JSON only."""
+
+
+def _build_prompt_agent_c_pass2(data_slice: dict, focus_names: list[str], pass1_result: dict) -> str:
+    """
+    P2 Pass 2 prompt: deep refinement on critical functions identified in pass 1.
+    Provides: focused pseudocode of top 5 functions + pass 1 findings for context.
+    """
+    all_fns = {f["name"]: f for f in data_slice.get("functions", [])}
+
+    fn_blocks = []
+    for fn_name in focus_names:
+        fn = all_fns.get(fn_name)
+        if not fn:
+            # Try partial match
+            fn = next((f for f in data_slice.get("functions", [])
+                        if fn_name.lower() in f["name"].lower()), None)
+        if not fn:
+            continue
+        header = (f"// {fn['name']} @ {fn.get('address','?')} "
+                  f"({fn.get('size',0)}B)  calls={fn.get('imp_calls',[])[:6]}")
+        if fn.get("packed_ascii"):
+            header += f"  packed_ascii={fn['packed_ascii'][:8]}"
+        # Full pseudocode for pass2 — up to 2500 chars per function
+        fn_blocks.append(f"{header}\n{fn.get('pseudocode','')[:2500]}")
+
+    # Summarize pass1 findings for context
+    pass1_summary_parts = []
+    if pass1_result.get("entry_function"):
+        pass1_summary_parts.append(f"- Entry function: {pass1_result['entry_function']}")
+    if pass1_result.get("main_logic_summary"):
+        pass1_summary_parts.append(f"- Pass1 summary: {str(pass1_result['main_logic_summary'])[:300]}")
+    hb = pass1_result.get("hidden_behaviors", [])
+    if hb:
+        pass1_summary_parts.append(f"- Pass1 hidden behaviors ({len(hb)}): "
+                                   + "; ".join(str(b.get("behavior", b))[:60] for b in hb[:3]))
+    eg = pass1_result.get("execution_graph", [])
+    if eg:
+        edges = " → ".join(f"{e.get('from','?')}→{e.get('to','?')}" for e in eg[:5])
+        pass1_summary_parts.append(f"- Pass1 exec graph: {edges}")
+
+    pass1_ctx = "\n".join(pass1_summary_parts) if pass1_summary_parts else "(no pass1 context)"
+
+    return f"""=== PASS 1 FINDINGS (context only) ===
+{pass1_ctx}
+
+=== FOCUSED DEEP ANALYSIS — {len(fn_blocks)} CRITICAL FUNCTIONS ===
+
+{chr(10).join(fn_blocks)}
+
+Perform DEEP analysis of these critical functions only.
+Reconstruct the exact execution sequence: what does this binary DO step by step?
+Identify ALL hidden behaviors, anti-analysis triggers, obfuscated values.
+
+Output flow_analysis JSON with fields:
+entry_function, execution_summary (detailed step-by-step narrative),
+function_analyses (list of {{name, purpose, mechanism, key_observations}}),
+hidden_behaviors (list of {{behavior, evidence, confidence}}),
+anti_analysis_triggers (list of {{trigger, detection_method, evasion_effect}}),
+execution_graph (list of {{from, to, condition}}),
+flow_confidence (0.0-1.0).
 Output raw JSON only."""
 
 
