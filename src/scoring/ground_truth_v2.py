@@ -481,14 +481,63 @@ GROUND_TRUTH_V2 = {
 
 
 def get_ground_truth(target: str) -> GroundTruthV2:
-    """Retrieve ground truth spec for a target."""
-    if target not in GROUND_TRUTH_V2:
-        raise ValueError(
-            f"Unknown target: {target}. Available: {list(GROUND_TRUTH_V2.keys())}"
+    """Retrieve ground truth spec for a target.
+    Checks: 1) main GROUND_TRUTH_V2, 2) auto-generated GROUND_TRUTH_AUTO.
+    """
+    if target in GROUND_TRUTH_V2:
+        return GROUND_TRUTH_V2[target]
+    # Try auto-generated GT
+    try:
+        from .ground_truth_auto import GROUND_TRUTH_AUTO
+        if target in GROUND_TRUTH_AUTO:
+            return GROUND_TRUTH_AUTO[target]
+    except ImportError:
+        pass
+    # Try loading from individual JSON file
+    import json
+    from pathlib import Path
+    json_path = Path(__file__).parent.parent.parent / "data" / "training" / "gt_auto" / f"{target}_gt.json"
+    if json_path.exists():
+        raw = json.loads(json_path.read_text(encoding="utf-8"))
+        return GroundTruthV2(
+            category=raw.get("category", "unknown"),
+            mechanism=raw.get("mechanism", ""),
+            mechanism_keywords=raw.get("mechanism_keywords", []),
+            artifacts=[
+                ArtifactSpec(
+                    type=a.get("type", "string"),
+                    value=a.get("value", ""),
+                    points=a.get("points", 10),
+                    aliases=a.get("aliases", []),
+                    required=a.get("required", False),
+                )
+                for a in raw.get("artifacts", [])
+            ],
+            iocs=[
+                IOCSpec(
+                    type=i.get("type", "key"),
+                    value=i.get("value", ""),
+                    points=i.get("points", 5),
+                    required=i.get("required", False),
+                )
+                for i in raw.get("iocs", [])
+            ],
+            execution_order=raw.get("execution_order", []),
+            mechanism_verification=raw.get("mechanism_verification", "True"),
         )
-    return GROUND_TRUTH_V2[target]
+    raise ValueError(
+        f"Unknown target: {target}. Available: {list_targets()}"
+    )
 
 
 def list_targets() -> list[str]:
-    """List all available targets."""
-    return list(GROUND_TRUTH_V2.keys())
+    """List all available targets (main + auto-generated)."""
+    targets = list(GROUND_TRUTH_V2.keys())
+    try:
+        from .ground_truth_auto import GROUND_TRUTH_AUTO
+        for t in GROUND_TRUTH_AUTO:
+            if t not in targets:
+                targets.append(t)
+    except ImportError:
+        pass
+    return targets

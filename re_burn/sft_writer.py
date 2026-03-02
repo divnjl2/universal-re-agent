@@ -1,202 +1,151 @@
 """
-RE Burn v1 — SFT Writer
-
-Reads from Redis re_burn:sft_queue (or processes quality-passed reflexions directly).
-Formats each example into SFT (supervised fine-tuning) JSONL format.
-External validation: runs score_v2 on output before writing — rejects if score < threshold.
-
-SFT format:
-  {
-    "instruction": "Analyze binary with these features...",
-    "input": "{binary features summary}",
-    "output": "{corrected analysis JSON}"
-  }
-
-Output: data/re_burn/sft_data.jsonl
-Redis queue: re_burn:sft_queue
+RE Burn v1 — SFT / DPO Writer
+Форматирует validated пары в LLaMA-Factory / axolotl формат.
+v2:
+- SFT: {instruction, input, output} — для fine-tuning RE specialist
+- DPO: {instruction, chosen, rejected} — для preference learning
+- Instruction использует features из binary dump (импорты, строки, XOR hits)
+- write_sft_pairs() принимает пары из quality_gate и пишет JSONL
 """
-from __future__ import annotations
-
-import json
-import sys
-import time
+import json, time
 from pathlib import Path
-from typing import Optional
 
-BASE = Path(__file__).parent.parent
-sys.path.insert(0, str(BASE))
+RE_DIR   = Path(__file__).parent.parent
+TRAINING = RE_DIR / "data" / "training"
 
-BURN_DIR   = BASE / "data" / "re_burn"
-SFT_OUTPUT = BURN_DIR / "sft_data.jsonl"
-SFT_SCORE_THRESHOLD = 70  # minimum score_v2% for SFT inclusion
+INSTRUCTION_TEMPLATE = """\
+Perform a complete reverse engineering analysis of the binary target '{target}'.
 
-REDIS_KEY_SFT     = "re_burn:sft_queue"
-REDIS_KEY_CNT_SFT = "re_burn:cnt:sft_written"
-REDIS_KEY_CNT_RAW = "re_burn:cnt:raw_processed"
+The binary has been disassembled and pre-processed. Use the provided features to:
+1. Identify the binary category (crackme/malware_dropper/evasion/obfuscation/injector)
+2. Describe the primary mechanism (algorithm + key details + execution flow)
+3. Extract all key artifacts: crypto keys, passwords, constants, API names
+4. Extract all IOCs: IP:port, embedded strings, crypto keys
+5. Map MITRE ATT&CK TTPs
+
+Produce final_report JSON with fields:
+summary, category, mechanism, secret_value, key_artifacts, iocs, mitre_ttps, findings, confidence, analysis_quality.
+Output raw JSON only."""
 
 
-def _get_redis():
+def _build_instruction(target: str) -> str:
+    return INSTRUCTION_TEMPLATE.format(target=target)
+
+
+def _build_input_features(target: str) -> str:
+    """Load binary features from dump JSON for use as SFT input context."""
+    dump_path = TRAINING / f"{target}_dump.json"
+    if not dump_path.exists():
+        return f"target: {target}"
+
     try:
-        import redis
-        r = redis.Redis(host="192.168.1.136", port=6379, db=0, socket_timeout=2)
-        r.ping()
-        return r
-    except Exception:
-        return None
+        dump = json.loads(dump_path.read_text(encoding="utf-8"))
+    except:
+        return f"target: {target}"
+
+    parts = []
+    # Imports
+    imports = dump.get("imports", [])[:30]
+    if imports:
+        imp_names = [f"{i.get('namespace','')}::{i.get('name','')}" for i in imports]
+        parts.append(f"imports: {imp_names}")
+
+    # Strings
+    strings = dump.get("strings", [])[:20]
+    if strings:
+        parts.append(f"strings: {strings}")
+
+    # XOR hits
+    blobs = dump.get("data_bytes", [])
+    xor_hits = [b for b in blobs if "xor_key" in b]
+    if xor_hits:
+        xor_info = [
+            f"addr={b.get('address')} key={b.get('xor_key')} decoded={b.get('xor_decoded','')!r}"
+            for b in xor_hits[:5]
+        ]
+        parts.append(f"xor_hits: {xor_info}")
+
+    # Function count
+    fns = dump.get("functions", [])
+    user_fns = [f for f in fns if f.get("is_user")]
+    parts.append(f"functions: {len(user_fns)} user-defined")
+
+    return "\n".join(parts) if parts else f"target: {target}"
 
 
-def build_sft_example(
-    target: str,
-    corrected_analysis: dict,
-    original_report: dict,
-    dump_features: Optional[dict] = None,
-) -> dict:
+def write_sft_pairs(
+    sft_pairs: list[dict],
+    output_path: str,
+    re_dir: str = None,   # API compat, unused
+    write_dpo: bool = True,
+) -> int:
     """
-    Build one SFT training example.
-    instruction: describe the task
-    input: binary features (imports, strings summary)
-    output: corrected analysis JSON
-    """
-    # Build feature summary from original report context
-    input_parts = []
-    if dump_features:
-        imports = dump_features.get("imports", [])[:20]
-        strings = dump_features.get("strings", [])[:15]
-        if imports:
-            input_parts.append(f"imports: {json.dumps(imports)}")
-        if strings:
-            input_parts.append(f"strings: {json.dumps(strings)}")
-
-    # Fallback: use original report fields as input context
-    if not input_parts:
-        input_parts.append(f"category_hint: {original_report.get('category', 'unknown')}")
-        if original_report.get("key_artifacts"):
-            input_parts.append(f"raw_artifacts: {original_report['key_artifacts'][:5]}")
-
-    instruction = (
-        f"Perform a complete reverse engineering analysis of binary target '{target}'. "
-        "Identify the binary category, mechanism, key artifacts (algorithms, keys, constants), "
-        "IOCs (IP addresses, ports, crypto keys), and execution flow. "
-        "Output JSON with fields: category, mechanism, key_artifacts, iocs, findings, confidence."
-    )
-
-    return {
-        "instruction": instruction,
-        "input": "\n".join(input_parts),
-        "output": json.dumps(corrected_analysis, ensure_ascii=False),
-        "target": target,
-        "timestamp": time.time(),
-    }
-
-
-def validate_and_write_sft(
-    target: str,
-    corrected_analysis: dict,
-    original_report: dict,
-    dump_features: Optional[dict] = None,
-) -> bool:
-    """
-    External validation: score_v2 on corrected_analysis before writing to SFT corpus.
-    Only writes if score >= SFT_SCORE_THRESHOLD.
-    Returns True if written, False if rejected.
-    """
-    try:
-        from src.scoring.score_v2 import score_v2 as _score_v2
-        from src.scoring.ground_truth_v2 import get_ground_truth
-        gt   = get_ground_truth(target)
-        sv2  = _score_v2(target, corrected_analysis, json.dumps(corrected_analysis), gt)
-        score_pct = sv2["percentage"]
-    except Exception as e:
-        print(f"  [sft] {target}: validation error: {e} — rejecting")
-        return False
-
-    if score_pct < SFT_SCORE_THRESHOLD:
-        print(f"  [sft] {target}: REJECTED  score={score_pct}% < {SFT_SCORE_THRESHOLD}%")
-        return False
-
-    example = build_sft_example(target, corrected_analysis, original_report, dump_features)
-
-    BURN_DIR.mkdir(parents=True, exist_ok=True)
-    with SFT_OUTPUT.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(example, ensure_ascii=False) + "\n")
-
-    redis_client = _get_redis()
-    if redis_client:
-        try:
-            redis_client.incr(REDIS_KEY_CNT_SFT)
-        except Exception:
-            pass
-
-    print(f"  [sft] {target}: WRITTEN  score={score_pct}%")
-    return True
-
-
-def process_sft_queue() -> int:
-    """
-    Process items from Redis re_burn:sft_queue.
+    Write SFT pairs to JSONL file (LLaMA-Factory alpaca format).
+    Also writes DPO pairs if write_dpo=True.
     Returns number of SFT examples written.
     """
-    redis_client = _get_redis()
-    if not redis_client:
-        print("  [sft] Redis unavailable — processing from local files instead")
-        return process_sft_from_files()
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    written = 0
-    while True:
-        item = redis_client.rpop(REDIS_KEY_SFT)
-        if not item:
-            break
-        try:
-            data = json.loads(item)
-            target    = data.get("target", "unknown")
-            corrected = data.get("corrected_analysis", {})
-            original  = data.get("original_report", {})
-            if validate_and_write_sft(target, corrected, original):
-                written += 1
-        except Exception as e:
-            print(f"  [sft] Queue item error: {e}")
+    dpo_path = output_path.with_name(output_path.stem.replace("sft_", "dpo_") + ".jsonl")
+    if "sft" not in output_path.name:
+        dpo_path = output_path.with_suffix("").parent / f"dpo_{output_path.name}"
 
-    return written
+    written_sft = 0
+    written_dpo = 0
 
+    with open(output_path, "a", encoding="utf-8") as f_sft, \
+         open(dpo_path, "a", encoding="utf-8") as f_dpo:
 
-def process_sft_from_files() -> int:
-    """
-    Fallback: process all quality-passed reflexions from BURN_DIR.
-    Returns number written.
-    """
-    written = 0
-    for quality_path in BURN_DIR.glob("*_quality.json"):
-        target = quality_path.stem.replace("_quality", "")
-        with quality_path.open(encoding="utf-8") as f:
-            quality = json.load(f)
-        if quality.get("quality_verdict") != "pass":
-            continue
+        for pair in sft_pairs:
+            target = pair["target"]
+            chosen  = pair["chosen"]
+            rejected = pair.get("rejected", {})
+            score   = pair.get("corrected_score", 0)
+            delta   = pair.get("score_delta", 0)
 
-        reflexion_path = BURN_DIR / f"{target}_reflexion.json"
-        if not reflexion_path.exists():
-            continue
-        with reflexion_path.open(encoding="utf-8") as f:
-            reflexion = json.load(f)
+            instruction = _build_instruction(target)
+            input_ctx   = _build_input_features(target)
 
-        corrected = reflexion.get("corrected_analysis", {})
-        original  = reflexion.get("original_report", {})
+            # --- SFT record (alpaca format) ---
+            sft_record = {
+                "instruction": instruction,
+                "input": input_ctx,
+                "output": json.dumps(chosen, ensure_ascii=False),
+                "metadata": {
+                    "target": target,
+                    "score_v2": score,
+                    "score_delta": delta,
+                    "correction_confidence": pair.get("correction_confidence", 0.7),
+                    "wrong_claims": pair.get("wrong_claims", []),
+                    "missing_items": pair.get("missing_items", []),
+                    "timestamp": time.time(),
+                    "source": "re_burn_v1",
+                },
+            }
+            f_sft.write(json.dumps(sft_record, ensure_ascii=False) + "\n")
+            written_sft += 1
 
-        if validate_and_write_sft(target, corrected, original):
-            written += 1
+            # --- DPO record (OpenAI format) ---
+            if write_dpo and rejected:
+                dpo_record = {
+                    "instruction": instruction,
+                    "input": input_ctx,
+                    "chosen": json.dumps(chosen, ensure_ascii=False),
+                    "rejected": json.dumps(rejected, ensure_ascii=False),
+                    "chosen_score": score,
+                    "rejected_score": pair.get("original_score", 0),
+                    "score_delta": delta,
+                    "target": target,
+                    "correction_notes": pair.get("correction_notes", ""),
+                    "timestamp": time.time(),
+                    "source": "re_burn_v1",
+                }
+                f_dpo.write(json.dumps(dpo_record, ensure_ascii=False) + "\n")
+                written_dpo += 1
 
-    return written
+    print(f"  [sft_writer] Written: {written_sft} SFT → {output_path.name}")
+    if write_dpo:
+        print(f"  [sft_writer] Written: {written_dpo} DPO → {dpo_path.name}")
 
-
-if __name__ == "__main__":
-    import argparse
-    ap = argparse.ArgumentParser(description="RE Burn v1 — SFT Writer")
-    ap.add_argument("--from-queue", action="store_true", help="Process Redis queue")
-    ap.add_argument("--from-files", action="store_true", help="Process from local files")
-    args = ap.parse_args()
-
-    if args.from_queue:
-        n = process_sft_queue()
-    else:
-        n = process_sft_from_files()
-    print(f"\nSFT examples written: {n}")
-    print(f"Output: {SFT_OUTPUT}")
+    return written_sft
