@@ -94,35 +94,41 @@ def get_targets_needing_report() -> list[str]:
             and (TRAINING / f"{t}.exe").exists()]
 
 
-def run_do_re_batch(targets: list[str], parallel: int = 3) -> dict[str, bool]:
-    """Run do_re_v3.py for targets in sub-batches of `parallel`."""
+def run_do_re_batch(targets: list[str], parallel: int = 6) -> dict[str, bool]:
+    """
+    Run do_re_v3.py for targets. Each call to do_re_v3 processes one target
+    but runs all 6 agents + synthesis in parallel internally.
+    We launch `parallel` such processes simultaneously.
+    """
     if not targets:
         return {}
     print(f"\n[do_re] Running pipeline for {len(targets)} targets (parallel={parallel})...")
     results = {}
 
-    # Process in batches of `parallel`
-    for i in range(0, len(targets), parallel):
-        batch = targets[i:i+parallel]
-        print(f"  [do_re] Batch {i//parallel + 1}: {batch}")
+    def run_one(target: str) -> tuple[str, bool]:
         try:
             r = subprocess.run(
-                [sys.executable, str(BASE / "do_re_v3.py"), "--targets"] + batch,
-                cwd=str(BASE), timeout=7200,
+                [sys.executable, str(BASE / "do_re_v3.py"), "--targets", target],
+                cwd=str(BASE), timeout=1800,   # 30min per target max
+                capture_output=False,
             )
-            for t in batch:
-                results[t] = (TRAINING / f"{t}_v3_report.json").exists()
-        except subprocess.TimeoutExpired:
-            print(f"  [do_re] Batch timeout: {batch}")
-            for t in batch:
-                results[t] = False
+            ok = (TRAINING / f"{target}_v3_report.json").exists()
+            return target, ok
         except Exception as e:
-            print(f"  [do_re] Batch error: {e}")
-            for t in batch:
-                results[t] = False
+            print(f"  [do_re] {target}: error {e}")
+            return target, False
 
-    ok = sum(results.values())
-    print(f"  [do_re] Done: {ok}/{len(targets)} reports generated")
+    with ThreadPoolExecutor(max_workers=parallel) as ex:
+        futs = {ex.submit(run_one, t): t for t in targets}
+        done = 0
+        for fut in as_completed(futs):
+            t, ok = fut.result()
+            results[t] = ok
+            done += 1
+            print(f"  [do_re] {t}: {'OK' if ok else 'FAIL'}  ({done}/{len(targets)})")
+
+    ok_count = sum(results.values())
+    print(f"  [do_re] Done: {ok_count}/{len(targets)} reports generated")
     return results
 
 
@@ -199,15 +205,18 @@ def run_burn_cycle(targets: list[str], cycle_num: int, min_score: int = 55) -> d
 
 def main():
     ap = argparse.ArgumentParser(description="RE Overnight Burn")
-    ap.add_argument("--rounds", type=int, default=3)
-    ap.add_argument("--parallel", type=int, default=3,
+    ap.add_argument("--rounds", type=int, default=0,
+                    help="Burn rounds (0=infinite)")
+    ap.add_argument("--parallel", type=int, default=6,
                     help="Parallel do_re_v3 targets per batch")
-    ap.add_argument("--min-score", type=int, default=55)
+    ap.add_argument("--min-score", type=int, default=50)
     ap.add_argument("--skip-compile", action="store_true")
     ap.add_argument("--skip-pipeline", action="store_true",
                     help="Skip do_re_v3, use existing reports")
     ap.add_argument("--targets", nargs="*", default=None,
                     help="Specific targets (default: all with GT)")
+    ap.add_argument("--fresh-reports", action="store_true",
+                    help="Re-run do_re_v3 even if reports exist")
     args = ap.parse_args()
 
     BURN_OUT.mkdir(parents=True, exist_ok=True)
@@ -249,10 +258,16 @@ def main():
                      if (TRAINING / f"{t}_v3_report.json").exists()]
     print(f"\n[overnight] {len(ready_targets)} targets ready for burn")
 
-    # ── Phase 2: Burn cycles ─────────────────────────────────────────────────
-    for cycle_num in range(1, args.rounds + 1):
+    # ── Phase 2: Burn cycles (0 = infinite) ──────────────────────────────────
+    cycle_num = 0
+    while True:
+        cycle_num += 1
+        if args.rounds > 0 and cycle_num > args.rounds:
+            break
+
         print(f"\n{'='*70}")
-        print(f"BURN CYCLE {cycle_num}/{args.rounds}  ({len(ready_targets)} targets)")
+        label = f"{cycle_num}/{args.rounds}" if args.rounds > 0 else f"{cycle_num}/inf"
+        print(f"BURN CYCLE {label}  ({len(ready_targets)} targets)")
         print("="*70)
 
         stats = run_burn_cycle(
@@ -264,6 +279,16 @@ def main():
         print(f"\n  Cycle {cycle_num} done: reflexions={stats['reflexions']} "
               f"qa_pass={stats['quality_passed']} sft={stats['sft_written']} "
               f"t={stats['elapsed_s']:.0f}s")
+
+        # Rolling: refresh reports for next cycle (re-run failed targets)
+        if args.rounds == 0 and not args.skip_pipeline:
+            new_need = [t for t in all_targets
+                        if not (TRAINING / f"{t}_v3_report.json").exists()]
+            if new_need:
+                print(f"\n  [overnight] Re-running pipeline for {len(new_need)} failed targets...")
+                run_do_re_batch(new_need, parallel=args.parallel)
+                ready_targets = [t for t in all_targets
+                                 if (TRAINING / f"{t}_v3_report.json").exists()]
 
     # ── Summary ──────────────────────────────────────────────────────────────
     total_t = time.monotonic() - t_total
