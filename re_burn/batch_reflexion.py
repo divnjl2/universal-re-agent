@@ -107,7 +107,7 @@ def gt_to_text(gt_obj) -> str:
 
     exc = getattr(gt_obj, 'execution_order', [])
     if exc:
-        lines.append(f"EXECUTION_ORDER: {' → '.join(exc)}")
+        lines.append(f"EXECUTION_ORDER: {' -> '.join(exc)}")
 
     return "\n".join(lines)
 
@@ -176,7 +176,7 @@ def run_batch_reflexion(
         print("  [batch_reflexion] No data to process")
         return []
 
-    print(f"  [batch_reflexion] {len(targets_data)} targets → single Gemini Flash 1M call...")
+    print(f"  [batch_reflexion] {len(targets_data)} targets -> single Gemini Flash 1M call...")
     t0 = time.monotonic()
 
     user_prompt = build_batch_prompt(targets_data)

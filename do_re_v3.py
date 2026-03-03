@@ -48,6 +48,12 @@ GHIDRA   = Path(os.environ.get("GHIDRA_INSTALL_DIR", r"C:\ghidra"))
 ANALYZE  = GHIDRA / "support" / "analyzeHeadless.bat"
 PROJ_DIR = Path(r"C:\ghidra_tmp")
 
+# Fix JAVA_HOME trailing backslash — Ghidra's launch.bat chokes on it
+_jh = os.environ.get("JAVA_HOME", "")
+if _jh.endswith("\\") or _jh.endswith("/"):
+    os.environ["JAVA_HOME"] = _jh.rstrip("\\/")
+
+
 # ── Local-first model assignments ──────────────────────────────────────────
 # Tier mapping (Compass P11 principle: match model size to task complexity):
 #   worker-4b    → L0: triage, IOC extraction, TTP lookup (pattern matching)
@@ -56,27 +62,27 @@ PROJ_DIR = Path(r"C:\ghidra_tmp")
 #   ag-gemini-*  → fallback when local unavailable / score too low
 #   cloud-sonnet → last resort (quota cost)
 AGENT_MODELS = {
-    "agent_a": "ag-gemini-flash",  # L0 — structural triage (fast, reliable)
-    "agent_b": "coder-30b",         # L1 — crypto/obfusc (coder-30b reliable at high parallel; r14b as fallback)
+    "agent_a": "lead-phi4",        # L0 — structural triage (Phi-4, 16K ctx, ai-server GPU)
+    "agent_b": "coder-30b",        # L1 — crypto/obfusc (Qwen3-Coder, 2 slots)
     "agent_c": "coder-30b",        # L2 — code flow analyst (Qwen3-Coder primary)
-    "agent_d": "ag-gemini-flash",  # L0 — MITRE TTP mapper (fast lookup)
-    "agent_e": "ag-gemini-flash",  # L0 — IOC extractor (regex-level, fast)
-    "agent_f": "ag-gemini-flash",  # L0 — batch function namer (fast, no parallel limits)
+    "agent_d": "lead-gemma",       # L0 — MITRE TTP mapper (Gemma-3-4B, 16K, ai-worker GPU)
+    "agent_e": "lead-phi4",        # L0 — IOC extractor (Phi-4, 16K, fast)
+    "agent_f": "coder-30b",        # L0 — batch function namer (needs 18K+, 65K ctx)
     "synthesis": "coder-30b",      # L2 — consensus synthesizer (local, no quota)
-    "verifier": "ag-gemini-pro",      # L2 — verifier via ag-pool (R1 busy with agent_b)
+    "verifier": "reasoning-14b",   # L2 — verifier (DeepSeek-R1 good at validation)
 }
 
 # Fallback chains per agent (tried in order if primary fails)
+# ag-pool removed — all accounts cred_invalid
 AGENT_FALLBACKS = {
-    # reasoning-14b added before coder-30b as reliable non-ag-pool fallback
-    "agent_a": ["ag-gemini-pro", "reasoning-14b", "coder-30b"],
-    "agent_b": ["reasoning-14b", "ag-gemini-pro", "cloud-sonnet"],
-    "agent_c": ["ag-gemini-pro", "cloud-sonnet"],
-    "agent_d": ["ag-gemini-pro", "reasoning-14b", "coder-30b"],
-    "agent_e": ["ag-gemini-pro", "reasoning-14b", "coder-30b"],
-    "agent_f": ["ag-gemini-pro", "coder-30b"],
-    "synthesis": ["ag-gemini-pro", "ag-sonnet", "cloud-sonnet"],
-    "verifier": ["ag-gemini-pro", "coder-30b"],
+    "agent_a": ["lead-gemma", "coder-30b"],
+    "agent_b": ["reasoning-14b", "coder-30b"],
+    "agent_c": ["reasoning-14b", "lead-phi4"],
+    "agent_d": ["lead-phi4", "coder-30b"],
+    "agent_e": ["lead-gemma", "coder-30b"],
+    "agent_f": ["lead-gemma", "lead-phi4"],
+    "synthesis": ["reasoning-14b", "lead-phi4"],
+    "verifier": ["coder-30b", "lead-phi4"],
 }
 
 # Per-model temperature overrides (Compass: R1 official settings = 0.6/0.95)
@@ -1146,7 +1152,7 @@ class ParallelREPipeline:
         batches_f = slice_for_agent_f(dump)
 
         # Fan-out: 6 agents in parallel
-        print(f"  [v3] Launching 6 agents in parallel (A/D/E=flash, B/C/F=pro, synth=pro-high)...")
+        print(f"  [v3] Launching 6 agents in parallel (A/D/E/F=worker-4b, B/C=coder-30b, synth=coder-30b)...")
         agent_results = self._run_parallel_agents(slices, batches_f)
 
         t_parallel = time.monotonic() - t0
@@ -2274,10 +2280,10 @@ For each gap, suggest a specific re-query hint for the responsible agent."""
                 "-postScript", "DumpAnalysis.java", str(out),
                 "-deleteProject"]
         print(f"  [ghidra] Analyzing {binary.name}...")
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        r = subprocess.run(cmd, capture_output=True, timeout=300)
         if r.returncode != 0 or not out.exists():
             print(f"  [ghidra] FAILED rc={r.returncode}")
-            print(r.stdout[-1500:])
+            print(r.stdout.decode("utf-8", errors="replace")[-1500:])
             return False
         print(f"  [ghidra] Done -> {out.name}")
         return True

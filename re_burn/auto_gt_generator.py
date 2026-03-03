@@ -331,7 +331,7 @@ def run_auto_gt(
             saved.append(gt)
             print(f"  [auto_gt] OK {target}: {gt['category']}, {len(gt.get('artifacts',[]))} artifacts, {len(gt.get('iocs',[]))} iocs")
         else:
-            print(f"  [auto_gt] ✗ {target}: INVALID — {errs}")
+            print(f"  [auto_gt] FAIL {target}: INVALID -- {errs}")
             failed.append(target)
             # Save anyway for inspection
             save_gt_json(gt, f"{target}_INVALID")

@@ -20,7 +20,7 @@ except ImportError:
 try:
     from sentence_transformers import SentenceTransformer
     ST_AVAILABLE = True
-except ImportError:
+except Exception:
     ST_AVAILABLE = False
 
 
