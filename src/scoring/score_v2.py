@@ -94,31 +94,117 @@ class DimensionScorer:
 class CategoryScorer(DimensionScorer):
     """Score category accuracy (20 points)."""
 
+    # Alias map: maps common LLM output variants to canonical category names.
+    # This handles cases where LLMs output synonyms, MITRE-style names, or
+    # slash-separated multi-categories instead of the exact ground truth string.
+    _ALIAS_TO_CANONICAL: Dict[str, str] = {
+        # malware_dropper aliases — LLMs often say "evasion", "c2", "encryption"
+        # for binaries that decrypt+drop a payload or beacon home
+        "malware":            "malware_dropper",
+        "dropper":            "malware_dropper",
+        "payload_delivery":   "malware_dropper",
+        "loader":             "malware_dropper",
+        "stager":             "malware_dropper",
+        "downloader":         "malware_dropper",
+        "c2":                 "malware_dropper",
+        "c2_beacon":          "malware_dropper",
+        "beacon":             "malware_dropper",
+        "rat":                "malware_dropper",
+        "ransomware":         "malware_dropper",
+        "crypto_dropper":     "malware_dropper",
+        "encryption":         "malware_dropper",
+        "crypto_malware":     "malware_dropper",
+        # evasion aliases — LLMs sometimes confuse evasion/anti_analysis
+        "anti-analysis":      "anti_analysis",
+        "antidebug":          "anti_analysis",
+        "anti_debug":         "anti_analysis",
+        "anti_debugging":     "anti_analysis",
+        "debugger_evasion":   "anti_analysis",
+        # injection aliases
+        "process_injection":  "injection",
+        "process injection":  "injection",
+        "remote injection":   "injection",
+        "dll_injection":      "injection",
+        # obfuscation aliases
+        "vm_dispatch":        "obfuscation",
+        "virtualization":     "obfuscation",
+        "code obfuscation":   "obfuscation",
+        "packer":             "obfuscation",
+        # crackme aliases
+        "crackme_challenge":  "crackme",
+        "password_check":     "crackme",
+    }
+
+    # Related-category map: expected → list of related outputs (earn 10 pts)
+    _RELATED_MAP: Dict[str, List[str]] = {
+        "anti_analysis": ["evasion", "anti-analysis", "antidebug", "anti_debug",
+                          "anti_debugging", "debugger_evasion"],
+        "evasion":       ["anti_analysis", "anti-analysis", "antidebug", "anti_debug",
+                          "api_hashing", "dynamic_resolution"],
+        "malware_dropper": ["malware", "dropper", "payload_delivery", "loader",
+                            "stager", "c2", "c2_beacon", "beacon", "rat",
+                            "encryption", "crypto_dropper", "crypto_malware",
+                            "downloader", "evasion", "crypto", "c2_client",
+                            "malware_loader", "malicious"],
+        "injection":     ["process_injection", "process injection", "remote injection",
+                          "dll_injection"],
+        "obfuscation":   ["vm_dispatch", "virtualization", "code obfuscation", "packer"],
+        "crackme":       ["crackme_challenge", "password_check", "license_check"],
+    }
+
+    def _normalize(self, cat: str) -> str:
+        """Lowercase, strip whitespace, collapse internal spaces/dashes."""
+        return cat.lower().strip()
+
+    def _split_slash(self, cat: str) -> List[str]:
+        """Split slash-separated multi-categories: 'C2/Evasion' → ['c2', 'evasion']."""
+        parts = [p.strip() for p in cat.split("/") if p.strip()]
+        return parts if len(parts) > 1 else [cat]
+
     def score(
         self, target: str, analysis_json: Dict[str, Any], raw_text: str, ground_truth: GroundTruthV2
     ) -> Tuple[int, str]:
-        model_category = (analysis_json.get("category") or "").lower().strip()
-        expected = ground_truth.category.lower().strip()
+        raw_model_category = (analysis_json.get("category") or "").strip()
+        model_category = self._normalize(raw_model_category)
+        expected = self._normalize(ground_truth.category)
 
+        # 1. Exact match (full 20 pts)
         if model_category == expected:
             return 20, f"Exact match: {model_category}"
 
-        related_map = {
-            "anti_analysis": ["evasion", "anti-analysis", "antidebug", "anti_debug"],
-            "evasion": ["anti_analysis", "anti-analysis", "antidebug"],
-            "malware_dropper": ["malware", "dropper", "payload_delivery"],
-            "injection": ["process_injection", "process injection", "remote injection"],
-            "obfuscation": ["vm_dispatch", "virtualization", "code obfuscation"],
-        }
+        # 2. Alias resolution — map LLM synonym to canonical, then check exact match (20 pts)
+        canonical = self._ALIAS_TO_CANONICAL.get(model_category)
+        if canonical and canonical == expected:
+            return 20, f"Alias exact match: {model_category} → {canonical}"
 
-        related_cats = related_map.get(expected, [])
+        # 3. Slash-separated multi-category: check if any part is exact or alias match (20 pts)
+        parts = self._split_slash(model_category)
+        if len(parts) > 1:
+            for part in parts:
+                if part == expected:
+                    return 20, f"Slash-category exact match: {part} in '{model_category}'"
+                part_canonical = self._ALIAS_TO_CANONICAL.get(part)
+                if part_canonical and part_canonical == expected:
+                    return 20, f"Slash-category alias match: {part} → {part_canonical}"
+
+        # 4. Related category check — alias or direct related (10 pts)
+        related_cats = self._RELATED_MAP.get(expected, [])
         if model_category in related_cats:
             return 10, f"Related category: {model_category} ≈ {expected}"
+        # Check slash parts against related list
+        if len(parts) > 1:
+            for part in parts:
+                if part in related_cats:
+                    return 10, f"Slash-category related: {part} ≈ {expected}"
+                part_canonical = self._ALIAS_TO_CANONICAL.get(part)
+                if part_canonical and part_canonical in related_cats:
+                    return 10, f"Slash-category alias related: {part} → {part_canonical} ≈ {expected}"
 
+        # 5. Substring containment — partial match (5 pts)
         if expected in model_category or model_category in expected:
-            return 5, f"Partial match: {model_category} contains {expected}"
+            return 5, f"Partial match: '{model_category}' contains '{expected}'"
 
-        return 0, f"Wrong category: {model_category} != {expected}"
+        return 0, f"Wrong category: '{model_category}' != '{expected}'"
 
 
 class MechanismScorer(DimensionScorer):
@@ -158,7 +244,12 @@ class MechanismScorer(DimensionScorer):
             return 10, f"Related mechanism (fuzzy={fuzzy_score:.2f})"
         if kw_overlap >= 0.5:
             return 15, f"Correct keywords ({kw_overlap:.0%}) but different wording"
-        return 0, f"Wrong mechanism (fuzzy={fuzzy_score:.2f})"
+        # Partial credit: at least 1 keyword matched but fuzzy score too low
+        if kw_overlap > 0.0:
+            # Scale: 1/N keywords = 5pts, 2/N = 7pts, etc. (max 9 to not overlap tier above)
+            partial = int(min(9, max(5, round(kw_overlap * 18))))
+            return partial, f"Partial keyword match ({kw_overlap:.0%} kw, fuzzy={fuzzy_score:.2f})"
+        return 0, f"Wrong mechanism (fuzzy={fuzzy_score:.2f}, kw=0%)"
 
 
 class ArtifactScorer(DimensionScorer):
@@ -559,6 +650,10 @@ def score_v2(
         false_positives = 0
         for finding in findings:
             confidence = finding.get("confidence", 0.5)
+            try:
+                confidence = float(confidence)
+            except (TypeError, ValueError):
+                confidence = 0.5
             if confidence > 0.8:
                 finding_text = (finding.get("finding", "") + finding.get("evidence", "")).lower()
                 if not any(kw.lower() in finding_text for kw in gt_keywords):

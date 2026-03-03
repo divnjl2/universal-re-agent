@@ -27,8 +27,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace", line_buffering=True)
 
 BASE = Path(__file__).parent
 sys.path.insert(0, str(BASE))
@@ -56,24 +56,25 @@ PROJ_DIR = Path(r"C:\ghidra_tmp")
 #   ag-gemini-*  → fallback when local unavailable / score too low
 #   cloud-sonnet → last resort (quota cost)
 AGENT_MODELS = {
-    "agent_a": "worker-4b",       # L0 — structural triage (4b: fast, pattern match)
-    "agent_b": "reasoning-14b",   # L1 — crypto/obfusc specialist (R1 math strength)
-    "agent_c": "coder-30b",       # L2 — code flow analyst (Qwen3-Coder primary)
-    "agent_d": "worker-4b",       # L0 — MITRE TTP mapper (structured lookup)
-    "agent_e": "worker-4b",       # L0 — IOC extractor (regex-level, 4b ok)
-    "agent_f": "coder-30b",       # L2 — batch function namer (code understanding)
-    "synthesis": "coder-30b",     # L2 — consensus synthesizer (local, no quota)
-    "verifier": "reasoning-14b",  # L1 — verifier/checker (R1 good at verification)
+    "agent_a": "ag-gemini-flash",  # L0 — structural triage (fast, reliable)
+    "agent_b": "coder-30b",         # L1 — crypto/obfusc (coder-30b reliable at high parallel; r14b as fallback)
+    "agent_c": "coder-30b",        # L2 — code flow analyst (Qwen3-Coder primary)
+    "agent_d": "ag-gemini-flash",  # L0 — MITRE TTP mapper (fast lookup)
+    "agent_e": "ag-gemini-flash",  # L0 — IOC extractor (regex-level, fast)
+    "agent_f": "ag-gemini-flash",  # L0 — batch function namer (fast, no parallel limits)
+    "synthesis": "coder-30b",      # L2 — consensus synthesizer (local, no quota)
+    "verifier": "ag-gemini-pro",      # L2 — verifier via ag-pool (R1 busy with agent_b)
 }
 
 # Fallback chains per agent (tried in order if primary fails)
 AGENT_FALLBACKS = {
-    "agent_a": ["ag-gemini-flash", "worker-4b"],
-    "agent_b": ["ag-gemini-pro", "coder-30b", "cloud-sonnet"],
+    # reasoning-14b added before coder-30b as reliable non-ag-pool fallback
+    "agent_a": ["ag-gemini-pro", "reasoning-14b", "coder-30b"],
+    "agent_b": ["reasoning-14b", "ag-gemini-pro", "cloud-sonnet"],
     "agent_c": ["ag-gemini-pro", "cloud-sonnet"],
-    "agent_d": ["ag-gemini-flash", "worker-4b"],
-    "agent_e": ["ag-gemini-flash", "worker-4b"],
-    "agent_f": ["ag-gemini-pro", "cloud-sonnet"],
+    "agent_d": ["ag-gemini-pro", "reasoning-14b", "coder-30b"],
+    "agent_e": ["ag-gemini-pro", "reasoning-14b", "coder-30b"],
+    "agent_f": ["ag-gemini-pro", "coder-30b"],
     "synthesis": ["ag-gemini-pro", "ag-sonnet", "cloud-sonnet"],
     "verifier": ["ag-gemini-pro", "coder-30b"],
 }
@@ -91,24 +92,25 @@ MODEL_TOP_P = {
 # Per-agent wall-clock timeout in seconds (0 = no cap)
 # Local models are slower per-token but no quota — give them time
 AGENT_TIMEOUTS = {
-    "agent_a": 120,   # worker-4b: fast, 2min cap
+    "agent_a": 300,   # ag-gemini-flash: fast but may queue; 5min cap
     "agent_b": 0,     # reasoning-14b: thinking, no cap
     "agent_c": 0,     # coder-30b: code flow, no cap
-    "agent_d": 120,   # worker-4b: TTP lookup, 2min cap
-    "agent_e": 120,   # worker-4b: IOC extraction, 2min cap
-    "agent_f": 0,     # coder-30b batch: no cap
+    "agent_d": 300,   # ag-gemini-flash: TTP lookup, 5min cap
+    "agent_e": 300,   # ag-gemini-flash: IOC extraction, 5min cap
+    "agent_f": 0,     # ag-gemini-flash batch: no cap (sequential phase2 may be slow)
     "synthesis": 0,   # coder-30b: final report, no cap
 }
 
 # Token budgets — local has no cost, be generous where it helps
 AGENT_MAX_TOKENS = {
     "agent_a": 1200,
-    "agent_b": 3000,  # R1 reasoning traces are long
+    "agent_b": 8000,  # R1 thinking: ~3k think + ~2k answer — needs 8k budget
     "agent_c": 2500,
     "agent_d": 1000,
     "agent_e": 800,
-    "agent_f": 2000,  # per-batch
-    "synthesis": 4000,
+    "agent_f": 8000,  # mega 1M-ctx: 150 fns × ~50 tokens each = ~7.5k output needed
+    "synthesis": 10000,  # coder-30b: complex JSON report may be 7-9k tokens
+    "verifier": 2000,   # ag-gemini-pro: verifier check JSON ~1.5k tokens
 }
 
 # Conflict resolution priority (higher index = higher authority)
@@ -179,6 +181,18 @@ COVERAGE MANDATE (P6): Your exclusive domain is structural/static analysis.
 - DO NOT attempt to decode XOR/RC4/hash constants — defer to Agent B.
 - FOCUS on: binary category, architecture, compiler artifacts, import categories, structural patterns.
 
+CATEGORY VOCABULARY — binary_category MUST be exactly one of these strings (no variants, no slashes):
+  "crackme"         — password/license validation challenge
+  "malware_dropper" — dropper, beacon, C2 client, RC4/XOR payload decryptor, stager, loader
+  "anti_analysis"   — anti-debug, anti-VM, sandbox evasion checks
+  "evasion"         — API hashing, dynamic resolution, import obfuscation
+  "injection"       — process injection, CreateRemoteThread, shellcode injection
+  "obfuscation"     — VM dispatch, bytecode interpreter, custom obfuscation layer
+  "unknown"         — if category is unclear
+
+CRITICAL: If the binary decrypts an embedded payload (XOR/RC4/AES), beacons to C2, or drops
+a second stage — classify as "malware_dropper", NOT "evasion" or "encryption".
+
 Output ONLY raw JSON — no markdown, no explanation.
 """
 
@@ -241,10 +255,28 @@ Output MUST contain at least one TTP. Output ONLY raw JSON — no markdown, no e
 """
 
 SYSTEM_E = """\
-You are an IOC extraction specialist.
-Extract all indicators of compromise from strings and decoded binary content.
-Categories: IPs, domains, URLs, file paths, registry keys, mutex names, crypto keys.
-Validate formats. No false positives — only concrete extractable values.
+You are an IOC extraction specialist for binary reverse engineering.
+Your primary mission: extract ALL indicators of compromise (IOCs) from binary string data,
+decoded content, and INFER IOCs from encrypted/obfuscated config blobs using surrounding context.
+
+CRITICAL RULES:
+1. Hardcoded IP:port strings — look for patterns like "192.168.x.x", "10.x.x.x", "172.x.x.x",
+   any dotted-quad IPv4, and associated port numbers (e.g. 4444, 8080, 443).
+2. Encrypted config blobs — if you see a crypto key (e.g. RC4, XOR) AND format strings that
+   print "C2 Host", "C2 Port", "beacon", "connect" etc., the binary DECRYPTS a config struct
+   at runtime. Report the key as a crypto_key IOC and note that the C2 IP:port is embedded
+   in the encrypted blob (beacon_config). Reconstruct what you can from struct field names.
+3. Mutex names — strings matching "Global\\\\...", "Local\\\\..." or obvious mutex patterns.
+4. File paths — absolute paths, %TEMP%, %APPDATA% patterns.
+5. Registry keys — HKEY_*, SOFTWARE\\\\*, SYSTEM\\\\* paths.
+6. Service/process names — .exe targets, service display names.
+7. Crypto keys — any hardcoded key material: RC4 keys, XOR keys, AES keys, seeds.
+
+For encrypted configs: if binary strings contain format strings like "C2 Host  : %s",
+"C2 Port  : %u", "Beacon: connecting to %s:%u", and a crypto key is visible, then
+set beacon_config fields to indicate an encrypted C2 config is present even if the
+raw IP is not visible as plaintext.
+
 Output ONLY raw JSON — no markdown, no explanation.
 """
 
@@ -312,6 +344,46 @@ Conflict resolution rules (highest authority first):
 3. Agent C (code flow evidence) overrides structural guesses on behaviors
 4. Agent E (decoded IOCs) provides ground truth on C2 indicators
 
+CATEGORY VOCABULARY — the "category" field in your output MUST be exactly one of these strings:
+  "crackme"         — password/license validation challenge
+  "malware_dropper" — dropper, beacon, C2 client, RC4/XOR payload decryptor, stager, loader
+  "anti_analysis"   — anti-debug, anti-VM, sandbox evasion checks
+  "evasion"         — API hashing, dynamic resolution, import obfuscation
+  "injection"       — process injection, CreateRemoteThread, shellcode injection
+  "obfuscation"     — VM dispatch, bytecode interpreter, custom obfuscation layer
+  "unknown"         — if category is unclear
+
+CRITICAL category rules:
+- DO NOT output slash-separated categories (e.g., "C2/Evasion" is WRONG — pick "malware_dropper").
+- If the binary decrypts data (XOR, RC4, AES) AND has network/C2 activity (socket, connect, beacon, C2 IP) → "malware_dropper".
+- If XOR/RC4 is used ONLY for string obfuscation, SSN obfuscation, or API hash resolution WITHOUT any network/C2 activity → "evasion" or "obfuscation".
+- "malware_dropper" requires: payload decryption + network communication (or process injection).
+- "evasion" covers: API hashing, direct syscalls, SSN obfuscation, anti-debug — even if XOR is used internally.
+
+MECHANISM FIELD REQUIREMENTS (critical for scoring):
+The "mechanism" field must describe the PRIMARY cryptographic or obfuscation operation.
+It MUST explicitly name:
+  (a) The algorithm: XOR, RC4, AES, FNV-1a, etc. -- use the exact algorithm name
+  (b) The key material: hardcoded key string or constant (e.g., "key='heepek'", "key='NexusKey2026'")
+  (c) What the operation does: decrypt embedded data, resolve API hashes, obfuscate SSN, etc.
+Examples of correct mechanism descriptions:
+  "XOR decryption loop with hardcoded key 'heepek' to decrypt embedded strings and C2 data"  ← malware_dropper (crypto + C2)
+  "RC4 decryption of hardcoded configuration data using key 'NexusKey2026' with IP and port"  ← malware_dropper (crypto + network)
+  "Direct NT syscall stubs; SSN obfuscated via XOR (0x1337^0x132F=0x0018); FNV-1a hash for API resolution; no network activity"  ← evasion (XOR for SSN only, no C2)
+DO NOT write generic phrases like "debugger detection" or "evasion" as the primary mechanism
+unless the binary has NO cryptographic operations at all. If ANY crypto is present, the
+mechanism field must start with the crypto algorithm name (XOR/RC4/AES/FNV).
+
+CRYPTO INFERENCE RULE (when Agent B algorithms_detected is empty due to R1 truncation):
+If Agent B algorithms_detected list is empty BUT Agent B data contains any of:
+  - xor_results with non-empty decoded strings
+  - keys_found list with one or more entries
+  - decrypted_iocs is non-empty
+Then treat the XOR/RC4 operation found in those fields as the primary mechanism.
+Also check Agent C hidden_behaviors for crypto-related behaviors (XOR loop, RC4 key schedule,
+cipher decryption) as a fallback source for mechanism identification.
+If the DUMP SUMMARY note says xor_hits > 0, the binary definitely uses XOR decryption -- name it.
+
 If an agent is listed as FAILED or TIMEOUT: note it, reduce confidence accordingly.
 Output ONLY raw JSON — no markdown, no explanation.
 """
@@ -363,7 +435,27 @@ def curl_llm(model: str, system: str, user: str, max_tokens: int = 1500,
             capture_output=True, text=True,
             timeout=curl_timeout + 10 if curl_timeout > 0 else None,
         )
+
+        # Retry on transient connection errors (rc=7=connection refused, rc=52=empty reply)
+        # NOTE: retry MUST happen BEFORE os.unlink — file still needed for @tf_path in cmd
+        TRANSIENT_RC = {7, 52, 56}
+        if r.returncode in TRANSIENT_RC:
+            # One automatic retry after brief backoff
+            time.sleep(3)
+            try:
+                r2 = subprocess.run(
+                    cmd,
+                    capture_output=True, text=True,
+                    timeout=curl_timeout + 10 if curl_timeout > 0 else None,
+                )
+                if r2.returncode == 0:
+                    r = r2
+                else:
+                    raise RuntimeError(f"curl rc={r2.returncode} [{label}]: {r2.stderr[:200]}")
+            except subprocess.TimeoutExpired:
+                raise RuntimeError(f"curl timeout on retry [{label}]")
     finally:
+        # Delete temp file AFTER all curl attempts (original + retry)
         try:
             os.unlink(tf_path)
         except OSError:
@@ -466,6 +558,49 @@ def decode_packed_ints(pseudocode: str) -> list[str]:
     return list(dict.fromkeys(results))
 
 
+def _rc4_decrypt(key: str, data: bytes) -> bytes:
+    """RC4 decryption for IOC extraction."""
+    key_bytes = key.encode() if isinstance(key, str) else key
+    S = list(range(256))
+    j = 0
+    for i in range(256):
+        j = (j + S[i] + key_bytes[i % len(key_bytes)]) % 256
+        S[i], S[j] = S[j], S[i]
+    i = j = 0
+    result = []
+    for byte in data:
+        i = (i + 1) % 256
+        j = (j + S[i]) % 256
+        S[i], S[j] = S[j], S[i]
+        result.append(byte ^ S[(S[i] + S[j]) % 256])
+    return bytes(result)
+
+
+def _try_rc4_decode_blobs(keys: list, blobs: list) -> list:
+    """Try RC4 decoding of data blobs with given keys. Returns decoded strings that look like IPs/URLs."""
+    decoded = []
+    ip_pattern = re.compile(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')
+    for key in keys:
+        for blob in blobs:
+            raw_hex = blob.get("data_bytes", "") or blob.get("hex", "")
+            if not raw_hex or len(raw_hex) < 10:
+                continue
+            try:
+                data_b = bytes.fromhex(raw_hex.replace(" ", "").replace("\n", ""))
+                dec = _rc4_decrypt(key, data_b)
+                # Try to decode as ASCII
+                text = dec.decode("ascii", errors="ignore")
+                # Look for IP:port patterns, URLs, or printable config
+                if ip_pattern.search(text) or "http" in text.lower() or "://" in text:
+                    decoded.append({"key": key, "blob_addr": blob.get("address", "?"), "decoded": text[:200]})
+                elif sum(32 <= b < 127 for b in dec) / max(len(dec), 1) > 0.7:
+                    # Mostly printable — might be config
+                    decoded.append({"key": key, "blob_addr": blob.get("address", "?"), "decoded": text[:200]})
+            except Exception:
+                continue
+    return decoded
+
+
 def detect_task_type(dump: dict) -> str:
     """Detect binary task type for routing hints. Reused from v2."""
     imp_cat = dump.get("import_categories", {})
@@ -522,9 +657,43 @@ def slice_for_agent_a(dump: dict) -> dict:
 def slice_for_agent_b(dump: dict, hash_matches: list) -> dict:
     """
     Agent B — Crypto/Obfuscation Specialist.
-    Receives: data blobs, XOR hits, API hash matches, crypto imports.
+    Receives: data blobs, XOR hits, API hash matches, crypto imports,
+    AND the top 8 crypto-relevant function pseudocodes (P2: hybrid analysis).
+    Without pseudocode, agent_b cannot identify RC4/AES implemented in code.
     """
     blobs = dump.get("data_bytes", [])
+
+    # Include top crypto-relevant functions so agent_b can identify RC4/AES/XOR in code
+    user_fns = [f for f in dump.get("functions", []) if f.get("is_user")]
+    crypto_fns = []
+    for fn in user_fns:
+        pc = (fn.get("pseudocode") or "").lower()
+        imp = [i.lower() for i in fn.get("imp_calls", [])]
+        # Score: look for crypto patterns in pseudocode and imports
+        score = (
+            pc.count("xor") * 3 + pc.count("rc4") * 5 + pc.count("aes") * 5 +
+            pc.count("crc32") * 4 + pc.count("fnv") * 4 +
+            pc.count("0x1337") * 6 + pc.count("0x132f") * 6 +
+            pc.count("[i]") * 2 +    # array access = possible key schedule
+            pc.count("% 256") * 4 +  # modulo 256 = RC4 S-box
+            pc.count("& 0xff") * 3 + pc.count("& 255") * 3 +
+            sum(5 for i in imp if any(c in i for c in ("crypt", "cipher", "hash", "bcrypt")))
+        )
+        if score > 0:
+            crypto_fns.append((score, fn))
+    # Top 8 crypto functions by score, include only name+pseudocode (trim large)
+    crypto_fns.sort(key=lambda x: -x[0])
+    fn_pseudocodes = []
+    for _, fn in crypto_fns[:8]:
+        pc = (fn.get("pseudocode") or "")[:1200]  # trim each to 1.2k chars
+        fn_pseudocodes.append({
+            "name": fn.get("name", ""),
+            "address": fn.get("address", ""),
+            "size": fn.get("size", 0),
+            "imp_calls": fn.get("imp_calls", [])[:8],
+            "pseudocode": pc,
+        })
+
     return {
         "data_bytes": blobs,
         "xor_hits": [b for b in blobs if "xor_key" in b],
@@ -532,6 +701,7 @@ def slice_for_agent_b(dump: dict, hash_matches: list) -> dict:
         "crypto_imports": dump.get("import_categories", {}).get("crypto", []),
         "all_imports": dump.get("imports", [])[:40],
         "strings_sample": dump.get("strings", [])[:20],
+        "crypto_functions": fn_pseudocodes,  # NEW: pseudocode of crypto-relevant fns
     }
 
 
@@ -664,7 +834,8 @@ def slice_for_agent_f(dump: dict) -> list[dict]:
 def slice_for_agent_e(dump: dict) -> dict:
     """
     Agent E — IOC Extractor.
-    Receives: strings, XOR-decoded content, packed ASCII from pseudocode.
+    Receives: strings, XOR-decoded content, packed ASCII from pseudocode,
+    raw data_bytes blobs (for encrypted config context), and import categories.
     """
     blobs = dump.get("data_bytes", [])
     user_fns = [f for f in dump.get("functions", []) if f.get("is_user")]
@@ -672,10 +843,29 @@ def slice_for_agent_e(dump: dict) -> dict:
     for fn in user_fns[:20]:
         all_packed.extend(decode_packed_ints(fn.get("pseudocode", "")))
 
+    # Include ALL strings (not just 60) so IOC-relevant strings aren't truncated
+    all_strings = dump.get("strings", [])
+
+    # Include raw encrypted data blobs so agent can reason about config struct context
+    # Prioritize blobs that are near crypto key strings (heuristic: include all .rdata blobs)
+    relevant_blobs = [
+        {
+            "address": b.get("address", "?"),
+            "block": b.get("block", "?"),
+            "length": b.get("length", 0),
+            "hex": b.get("hex", ""),
+            **({"xor_key": b["xor_key"], "xor_decoded": b["xor_decoded"]}
+               if b.get("xor_decoded") else {}),
+        }
+        for b in blobs[:40]  # cap at 40 blobs to keep prompt size reasonable
+    ]
+
     return {
-        "strings": dump.get("strings", [])[:60],
+        "strings": all_strings[:80],  # increased from 60
         "xor_decoded": [b["xor_decoded"] for b in blobs if b.get("xor_decoded")],
         "packed_ascii": list(dict.fromkeys(all_packed)),  # deduplicated
+        "data_blobs": relevant_blobs,   # NEW: raw encrypted blobs for config context
+        "import_categories": dump.get("import_categories", {}),  # NEW: for context
     }
 
 
@@ -791,6 +981,39 @@ class ParallelREPipeline:
             if any(gap.get("re_query_agent") in ("agent_b", "agent_c", "agent_e")
                    for gap in missing_coverage[:3]):
                 print(f"  [v3] Re-synthesizing after verifier re-queries...")
+                conflicts = self.detect_conflicts(agent_results)
+                final_report = self.synthesize(agent_results, conflicts)
+
+        # ── RC4 IOC post-processing: decrypt encrypted config blobs ─────────
+        # After verifier pass, check if agent_b found RC4 keys. If so, try to
+        # decrypt data_bytes blobs in Python and inject plaintext into agent_e.
+        b_result = agent_results.get("agent_b")
+        b_data = b_result.data if b_result else {}
+        b_keys = b_data.get("keys_found", [])
+        if b_keys:
+            data_blobs_for_rc4 = dump.get("data_bytes", [])
+            rc4_decoded = _try_rc4_decode_blobs(b_keys, data_blobs_for_rc4)
+            if rc4_decoded:
+                print(f"  [rc4-ioc] Decoded {len(rc4_decoded)} config blob(s) using RC4 key(s): {b_keys}")
+                for d in rc4_decoded[:3]:
+                    print(f"  [rc4-ioc]   key={d['key']} @ {d['blob_addr']}: {d['decoded'][:80]}")
+                # Re-run agent_e with decoded config injected into the prompt
+                e_slice = slice_for_agent_e(dump)
+                e_slice["rc4_decoded_configs"] = rc4_decoded
+                e_result = agent_results.get("agent_e")
+                hint_rc4 = (
+                    f"RC4-decoded config data found using key(s) {b_keys}: "
+                    f"{rc4_decoded[0]['decoded'][:120]}. "
+                    "Extract all IPs, ports, domains, and keys as concrete IOCs."
+                )
+                updated_e = self._run_targeted_requery(
+                    "agent_e", hint_rc4, e_slice, e_result or AgentResult(
+                        agent_id="agent_e", model=AGENT_MODELS["agent_e"], status="error"
+                    )
+                )
+                agent_results["agent_e"] = updated_e
+                # Re-synthesize with enriched agent_e
+                print(f"  [rc4-ioc] Re-synthesizing with RC4-decoded IOCs...")
                 conflicts = self.detect_conflicts(agent_results)
                 final_report = self.synthesize(agent_results, conflicts)
 
@@ -1374,108 +1597,96 @@ class ParallelREPipeline:
 
     def _run_agent_f(self, batches: list[dict]) -> AgentResult:
         """
-        Agent F — Batch Function Namer (ag-gemini-pro, parallel sub-requests).
-        P3: Two-phase approach:
-          Phase 1: Categorize all functions (crypto/injection/anti_analysis/network/vm_dispatch/utility)
-          Phase 2: Name each function using its category as context for more precise naming.
-        Processes ALL user functions in parallel batches of 10.
+        Agent F — Mega Function Namer (ag-gemini-flash, 1M context window).
+        Replaces the old 15-batch / 30-call approach with exactly 2 LLM calls:
+          Phase 1 mega: categorize ALL functions in one call  -> {fname: category}
+          Phase 2 mega: name   ALL functions in one call       -> {fname: {name,...}}
+        Total: 2 LLM calls regardless of function count.
         """
         model = AGENT_MODELS["agent_f"]
         t0 = time.monotonic()
-        print(f"    [agent_f] starting ({model})  batches={len(batches)}  [2-phase P3]...")
 
-        function_map: dict[str, dict] = {}
+        # Flatten batches back to a single functions list
+        functions: list[dict] = []
+        for batch in batches:
+            functions.extend(batch.get("functions", []))
+
+        print(f"    [agent_f] starting ({model})  total_functions={len(functions)}  [mega 2-call]...")
+
+        # Guard: no user functions to name
+        if not functions:
+            print(f"    [agent_f] no user functions — skipping")
+            return AgentResult(
+                agent_id="agent_f", model=model, status="ok",
+                data={"function_map": {}, "batch_errors": 0,
+                      "total_functions": 0, "category_map": {}},
+                elapsed_s=0.0,
+            )
+
         batch_errors = 0
 
-        # ── Phase 1: Categorize ────────────────────────────────────────────────
-        category_map: dict[str, str] = {}  # function_name → category
-
-        def _run_batch_phase1(batch: dict) -> dict:
-            """Phase 1: categorize only (lightweight)."""
-            fns = batch.get("functions", [])
-            fn_lines = []
-            for fn in fns:
-                calls = str(fn.get("imp_calls", []))[:100]
-                strs  = str(fn.get("str_refs", []))[:80]
-                pc    = fn.get("pseudocode", "")[:300]
-                fn_lines.append(
-                    f"// {fn['name']} ({fn.get('size',0)}B) calls={calls} strs={strs}\n{pc}"
-                )
-            prompt = (
-                f"Categorize these {len(fns)} functions into one of: "
-                "crypto, injection, anti_analysis, network, vm_dispatch, utility, unknown\n\n"
-                + "\n---\n".join(fn_lines)
-                + '\n\nProduce JSON: {"functions": [{"name": "...", "category": "..."}]}'
-                "\nOutput raw JSON only."
-            )
-            raw_text, _ = curl_llm(
-                model=model,
+        # ── Phase 1 mega: categorize ALL functions in ONE call ─────────────────
+        phase1_prompt = _build_prompt_agent_f_mega(functions)
+        category_map: dict[str, str] = {}
+        try:
+            raw1, usage1, model = curl_llm_with_fallback(
+                agent_id="agent_f",
                 system=SYSTEM_F_CATEGORIZE,
-                user=prompt,
-                max_tokens=500,
-                label=f"agent_f_p1_b{batch['batch_index']}",
+                user=phase1_prompt,
+                max_tokens=4000,
+                label="agent_f_mega_p1",
+                curl_timeout=120,
             )
-            return parse_json_response(raw_text)
-
-        # Phase 1 parallel
-        max_parallel = min(3, len(batches))
-        with ThreadPoolExecutor(max_workers=max_parallel,
-                                thread_name_prefix="re_agent_f_p1") as pool:
-            futures1 = {pool.submit(_run_batch_phase1, b): b["batch_index"] for b in batches}
-            for future in futures1:
-                bidx = futures1[future]
-                try:
-                    result = future.result(timeout=45)
-                    for fn_entry in result.get("functions", []):
-                        fname = fn_entry.get("name", "")
-                        if fname:
-                            category_map[fname] = fn_entry.get("category", "unknown")
-                except Exception as e:
-                    print(f"    [agent_f] phase1 batch {bidx} error: {e}")
+            parsed1 = parse_json_response(raw1)
+            # Sanitize: keep only str->str entries (model may wrap in outer key)
+            if isinstance(parsed1, dict) and "error" not in parsed1:
+                category_map = {k: v for k, v in parsed1.items()
+                                if isinstance(k, str) and isinstance(v, str)}
+        except Exception as e:
+            print(f"    [agent_f] phase1 mega error: {e}")
+            batch_errors += 1
 
         t_p1 = time.monotonic() - t0
-        print(f"    [agent_f] phase1 done in {t_p1:.1f}s  categorized={len(category_map)}")
+        print(f"    [agent_f] phase1 mega done in {t_p1:.1f}s  categorized={len(category_map)}")
 
-        # ── Phase 2: Name with category context ──────────────────────────────
-        def _run_batch_phase2(batch: dict) -> dict:
-            """Phase 2: name within category context from phase 1."""
-            # Inject category from phase 1 into each function entry
-            batch_with_categories = dict(batch)
-            fns_with_cats = []
-            for fn in batch.get("functions", []):
-                fn_copy = dict(fn)
-                fn_copy["pre_categorized"] = category_map.get(fn["name"], "unknown")
-                fns_with_cats.append(fn_copy)
-            batch_with_categories["functions"] = fns_with_cats
-
-            prompt = _build_prompt_agent_f_batch(batch_with_categories)
-            raw_text, _ = curl_llm(
-                model=model,
+        # ── Phase 2 mega: name ALL functions in ONE call with categories ───────
+        phase2_prompt = _build_prompt_agent_f_name_mega(functions, category_map)
+        function_map: dict[str, dict] = {}
+        try:
+            raw2, usage2, model2 = curl_llm_with_fallback(
+                agent_id="agent_f",
                 system=SYSTEM_F,
-                user=prompt,
+                user=phase2_prompt,
                 max_tokens=AGENT_MAX_TOKENS["agent_f"],
-                label=f"agent_f_p2_b{batch['batch_index']}",
+                label="agent_f_mega_p2",
+                curl_timeout=120,
             )
-            return parse_json_response(raw_text)
-
-        # Phase 2 parallel
-        with ThreadPoolExecutor(max_workers=max_parallel,
-                                thread_name_prefix="re_agent_f_p2") as pool:
-            futures2 = {pool.submit(_run_batch_phase2, b): b["batch_index"] for b in batches}
-            for future in futures2:
-                bidx = futures2[future]
-                try:
-                    result = future.result(timeout=60)
-                    for fn_entry in result.get("functions", []):
-                        fname = fn_entry.get("name", "")
-                        if fname:
-                            # Merge phase 1 category into phase 2 result
-                            if fname in category_map and "category" not in fn_entry:
-                                fn_entry["category"] = category_map[fname]
-                            function_map[fname] = fn_entry
-                except Exception as e:
-                    batch_errors += 1
-                    print(f"    [agent_f] phase2 batch {bidx} error: {e}")
+            raw_map = parse_json_response(raw2)
+            if isinstance(raw_map, dict) and "error" not in raw_map:
+                for fname, entry in raw_map.items():
+                    if not isinstance(fname, str):
+                        continue
+                    if isinstance(entry, dict):
+                        # Merge phase 1 category if phase 2 didn't supply one
+                        if "category" not in entry and fname in category_map:
+                            entry["category"] = category_map[fname]
+                        function_map[fname] = entry
+                    elif isinstance(entry, str):
+                        # Model returned just a name string — wrap it
+                        function_map[fname] = {
+                            "name": entry,
+                            "purpose": "",
+                            "category": category_map.get(fname, "unknown"),
+                            "confidence": 0.5,
+                            "key_evidence": "",
+                        }
+            elif isinstance(raw_map, dict) and "error" in raw_map:
+                # Bug fix: JSON parse failure must increment batch_errors
+                batch_errors += 1
+                print(f"    [agent_f] phase2 JSON parse failed. raw[:300]={raw2[:300]!r}")
+        except Exception as e:
+            print(f"    [agent_f] phase2 mega error: {e}")
+            batch_errors += 1
 
         elapsed = time.monotonic() - t0
         print(f"    [agent_f] done in {elapsed:.1f}s  "
@@ -1485,7 +1696,7 @@ class ParallelREPipeline:
         return AgentResult(
             agent_id="agent_f", model=model, status=status,
             data={"function_map": function_map, "batch_errors": batch_errors,
-                  "total_functions": len(function_map),
+                  "total_functions": len(functions),
                   "category_map": category_map},
             elapsed_s=elapsed,
         )
@@ -1517,8 +1728,12 @@ class ParallelREPipeline:
                 user=user_prompt,
                 max_tokens=AGENT_MAX_TOKENS["synthesis"],
                 label="synthesis",
+                curl_timeout=300,  # 5min cap for synthesis
             )
             final_report = parse_json_response(raw_text)
+            if isinstance(final_report, dict) and "error" in final_report:
+                print(f"  [synthesis] JSON parse failed. raw[:300]={raw_text[:300]!r}")
+                final_report = self._fallback_merge(agent_results)
         except Exception as e:
             print(f"  [synthesis] FAILED: {e}  — falling back to merged output")
             final_report = self._fallback_merge(agent_results)
@@ -1559,6 +1774,30 @@ class ParallelREPipeline:
             else:
                 doc["agent_data"][agent_id] = None
 
+        # Summarise agent_b crypto evidence to help synthesis when algorithms_detected=[]
+        b_data = doc["agent_data"].get("agent_b") or {}
+        b_algos      = b_data.get("algorithms_detected", [])
+        b_xor_res    = b_data.get("xor_results", {})
+        b_keys_found = b_data.get("keys_found", [])
+        b_dec_iocs   = b_data.get("decrypted_iocs", [])
+        b_ssn        = b_data.get("ssn_obfuscations", [])
+        crypto_note  = None
+        if not b_algos and (b_xor_res or b_keys_found or b_dec_iocs or b_ssn):
+            parts = []
+            if b_keys_found:
+                parts.append(f"keys_found={b_keys_found}")
+            if b_xor_res:
+                parts.append("xor_results present")
+            if b_dec_iocs:
+                parts.append(f"decrypted_iocs={b_dec_iocs}")
+            if b_ssn:
+                parts.append(f"ssn_obfuscations={b_ssn}")
+            crypto_note = (
+                "[CRYPTO INFERENCE] Agent B algorithms_detected=[] (possible R1 truncation) "
+                f"but crypto evidence found: {'; '.join(parts)}. "
+                "Infer primary mechanism from these fields."
+            )
+
         doc["meta"] = {
             "agents_succeeded": succeeded,
             "agents_failed": total - succeeded,
@@ -1567,6 +1806,7 @@ class ParallelREPipeline:
                 else "partial"   if succeeded >= 3
                 else "degraded"
             ),
+            "agent_b_crypto_note": crypto_note,
         }
         return doc
 
@@ -1742,11 +1982,11 @@ class ParallelREPipeline:
         Returns verifier_result with re-query hints for responsible agents.
         Max 1 round of re-queries.
         """
-        model = AGENT_MODELS["synthesis"]  # reuse synthesis model tier
+        model = AGENT_MODELS["verifier"]  # dedicated verifier model (reasoning-14b)
         t0 = time.monotonic()
 
         # Build verifier prompt from final_report
-        report_text = json.dumps(final_report, indent=2)[:3000]
+        report_text = json.dumps(final_report, indent=2)[:5000]
         category = final_report.get("category", "unknown")
         mechanism = final_report.get("mechanism", "")
 
@@ -1768,8 +2008,9 @@ For each gap, suggest a specific re-query hint for the responsible agent."""
                 agent_id="verifier",
                 system=SYSTEM_VERIFIER,
                 user=user_prompt,
-                max_tokens=800,
+                max_tokens=AGENT_MAX_TOKENS.get("verifier", 2000),
                 label="verifier",
+                curl_timeout=120,  # 2min cap — ag-gemini-pro is fast
             )
             result = parse_json_response(raw_text)
         except Exception as e:
@@ -2023,9 +2264,11 @@ For each gap, suggest a specific re-query hint for the responsible agent."""
         if out.exists() and not force:
             print(f"  [dump] Reusing {out.name}")
             return True
-        PROJ_DIR.mkdir(parents=True, exist_ok=True)
+        # Use per-target project dir to avoid parallel conflicts
+        proj_dir = PROJ_DIR / binary.stem
+        proj_dir.mkdir(parents=True, exist_ok=True)
         proj = f"bench_{binary.stem}"
-        cmd  = [str(ANALYZE), str(PROJ_DIR), proj,
+        cmd  = [str(ANALYZE), str(proj_dir), proj,
                 "-import", str(binary),
                 "-scriptPath", str(SCRIPTS),
                 "-postScript", "DumpAnalysis.java", str(out),
@@ -2129,6 +2372,15 @@ def _build_prompt_agent_b(data: dict) -> str:
         if "xor_key" not in b and b.get("length", 0) <= 64:
             blob_lines.append(f"  {b.get('address','?')} ({b.get('length',0)}B) hex=[{b.get('hex','')}]")
 
+    # Build crypto functions section (pseudocode — critical for RC4/AES detection)
+    crypto_fns = data.get("crypto_functions", [])
+    fn_blocks = []
+    for fn in crypto_fns:
+        fn_blocks.append(
+            f"\n--- {fn['name']} @ {fn['address']} ({fn['size']}B)"
+            f"  calls={fn.get('imp_calls', [])[:5]}\n{fn['pseudocode']}"
+        )
+
     return f"""=== CRYPTO IMPORTS ===
 {', '.join(crypto_imp) if crypto_imp else '  (none detected)'}
 
@@ -2141,11 +2393,16 @@ def _build_prompt_agent_b(data: dict) -> str:
 === API HASH RESOLUTIONS ===
 {chr(10).join(hash_lines) if hash_lines else '  (none)'}
 
+=== CRYPTO-RELEVANT FUNCTION PSEUDOCODE ({len(crypto_fns)} functions) ===
+{chr(10).join(fn_blocks) if fn_blocks else '  (none — no crypto patterns detected in functions)'}
+
 CRITICAL: Check every XOR constant pair for SSN obfuscation:
   - If two XOR constants A ^ B = value in range 0x00-0xFF near strings "NtAllocate/NtFree/syscall/ssn"
     → this is an obfuscated NT syscall number. Report: ssn_obfuscation: {{a, b, ssn_value, nt_function}}
   - NtAllocateVirtualMemory = SSN 0x18, NtFreeVirtualMemory = SSN 0x1E (typical Win10/11)
   - FNV-1a: prime=0x01000193, offset_basis=0x811c9dc5 — if you see these, report hash_algorithm=fnv1a
+  - RC4 key schedule: look for "% 256" or "& 0xFF" in a 256-iteration loop — that's RC4 S-box init
+  - RC4 detection: nested loops with S[i] swap pattern = RC4. Extract the key bytes/string used.
 
 Identify all cryptographic algorithms present. For each XOR/RC4 blob, attempt decryption.
 Extract all keys and decoded content. Resolve any unresolved hash constants.
@@ -2294,23 +2551,69 @@ Output raw JSON only."""
 def _build_prompt_agent_e(data: dict) -> str:
     """
     Build Agent E prompt from IOC extraction data slice.
-    TODO: Implement full prompt body using:
-      - data["strings"] for raw binary strings with addresses
+    Uses:
+      - data["strings"] for raw binary strings with addresses and xrefs
       - data["xor_decoded"] for XOR-decoded content
       - data["packed_ascii"] for packed dword ASCII strings
+      - data["data_blobs"] for raw encrypted data blobs (for config struct inference)
+      - data["import_categories"] for import context
+      - data["rc4_decoded_configs"] for RC4-decrypted config blobs (injected by pipeline)
     Expected output: iocs JSON (schema in design doc section 3)
     """
-    strings     = data.get("strings", [])
-    xor_decoded = data.get("xor_decoded", [])
-    packed      = data.get("packed_ascii", [])
+    strings      = data.get("strings", [])
+    xor_decoded  = data.get("xor_decoded", [])
+    packed       = data.get("packed_ascii", [])
+    data_blobs   = data.get("data_blobs", [])
+    import_cats  = data.get("import_categories", {})
+    rc4_decoded_configs = data.get("rc4_decoded_configs", [])
 
-    str_lines = [
-        f"  {s.get('address','?')}: {s.get('value','')!r}"
-        for s in strings[:50]
+    # Format strings with address and xrefs so agent sees which function references each string
+    str_lines = []
+    for s in strings[:80]:
+        addr  = s.get("address", "?")
+        val   = s.get("value", "")
+        xrefs = s.get("xrefs", [])
+        xref_str = f"  [xref: {xrefs[0].split(':')[0]}]" if xrefs else ""
+        str_lines.append(f"  {addr}: {val!r}{xref_str}")
+
+    # Highlight IOC-relevant strings (C2 format strings, keys, mutex patterns, IPs)
+    ioc_hint_strings = [
+        s.get("value", "") for s in strings
+        if any(kw in s.get("value", "").lower() for kw in [
+            "c2", "host", "port", "beacon", "connect", "global\\", "local\\",
+            "mutex", "192.", "10.", "172.", "http://", "https://", ".exe", "key"
+        ])
     ]
 
-    return f"""=== BINARY STRINGS ({len(strings)} total, showing {min(len(strings),50)}) ===
-{chr(10).join(str_lines)}
+    # Format encrypted data blobs — shows agent what raw blobs exist for config inference
+    blob_lines = []
+    for b in data_blobs[:20]:
+        addr   = b.get("address", "?")
+        block  = b.get("block", "?")
+        length = b.get("length", 0)
+        hex_s  = b.get("hex", "")[:64]
+        line   = f"  {addr} [{block}, {length}B]: {hex_s}{'...' if len(b.get('hex',''))>64 else ''}"
+        if b.get("xor_decoded"):
+            line += f"  -> XOR decoded: {b['xor_decoded']!r}"
+        blob_lines.append(line)
+
+    net_imports    = import_cats.get("network", [])
+    crypto_imports = import_cats.get("crypto", [])
+
+    # Format RC4-decoded config blobs (injected by pipeline post-processing)
+    rc4_section = ""
+    if rc4_decoded_configs:
+        rc4_lines = "\n".join(
+            f"  Key={d['key']} @ blob {d['blob_addr']}: {d['decoded']}"
+            for d in rc4_decoded_configs[:5]
+        )
+        rc4_section = f"\n=== RC4-DECODED CONFIGURATION DATA (decrypted using agent_b keys) ===\nTHESE ARE REAL DECRYPTED VALUES — extract IPs, ports, domains, keys as concrete IOCs:\n{rc4_lines}\n"
+
+    return f"""=== BINARY STRINGS ({len(strings)} total, showing {min(len(strings),80)}) ===
+{chr(10).join(str_lines) if str_lines else '  (none)'}
+
+=== IOC-RELEVANT STRINGS (filtered: C2/host/port/beacon/mutex/key/IP) ===
+{chr(10).join(f"  {v!r}" for v in ioc_hint_strings) if ioc_hint_strings else '  (none)'}
 
 === XOR-DECODED CONTENT ===
 {chr(10).join(f"  {v!r}" for v in xor_decoded) if xor_decoded else '  (none)'}
@@ -2318,12 +2621,37 @@ def _build_prompt_agent_e(data: dict) -> str:
 === PACKED ASCII (decoded from dword constants) ===
 {', '.join(repr(p) for p in packed[:20]) if packed else '  (none)'}
 
-Extract all IOCs. Be precise — no false positives.
-Categories: ip_addresses, domains, urls, file_paths, registry_keys,
-mutex_names, service_names, crypto_keys, beacon_config.
+=== ENCRYPTED / RAW DATA BLOBS ({len(data_blobs)} total, showing first 20) ===
+NOTE: If a crypto key string is present (e.g. RC4 key "NexusKey2026") AND format strings
+show "C2 Host : %s", "C2 Port : %u", "Beacon: connecting to %s:%u" etc., the binary
+decrypts a config struct containing a hardcoded C2 IP:port at runtime. Infer and report
+this as beacon_config even if the IP is not visible as plaintext in the strings list.
+{chr(10).join(blob_lines) if blob_lines else '  (none)'}
+{rc4_section}
+=== IMPORT CONTEXT ===
+Network imports: {net_imports}
+Crypto-related imports: {crypto_imports}
 
-Produce iocs JSON with those exact fields plus:
-ioc_confidence (0.0-1.0), extraction_notes.
+=== EXTRACTION TASK ===
+Extract ALL IOCs. Priority targets:
+1. Hardcoded IP addresses (dotted-quad IPv4) and ports — including those embedded in
+   encrypted blobs decrypted at runtime via a visible key string
+2. Crypto keys (RC4, XOR, AES — any hardcoded key material visible as a string)
+3. Mutex names (Global\\\\..., Local\\\\... patterns)
+4. C2 beacon config (reconstruct from format strings + encrypted blob context + crypto key)
+5. File paths, registry keys, service names, URLs
+
+If the binary has a crypto key string AND C2/beacon format strings AND raw data blobs:
+- Set beacon_config.encrypted = true
+- Set beacon_config.key to the visible crypto key
+- Set beacon_config.config_blob_address to the blob address
+- Add any inferable IP:port to ip_addresses with a note it is encrypted at rest
+
+Produce iocs JSON with these exact top-level fields:
+  ip_addresses, domains, urls, file_paths, registry_keys,
+  mutex_names, service_names, crypto_keys, beacon_config,
+  ioc_confidence (0.0-1.0), extraction_notes.
+
 Output raw JSON only."""
 
 
@@ -2359,6 +2687,63 @@ def _build_prompt_agent_f_batch(batch: dict) -> str:
 Produce JSON:
 {{"functions": [{{"name": "original_name", "purpose": "one sentence", "category": "crypto|anti_analysis|network|injection|utility|dispatch|unknown", "confidence": 0.0, "key_evidence": "brief"}}]}}
 Output raw JSON only."""
+
+
+def _build_prompt_agent_f_mega(functions_list: list[dict]) -> str:
+    """Build Agent F Phase 1 mega-prompt: categorize ALL functions in ONE call.
+    Uses Gemini 1M context window — no batching needed.
+    functions_list: list of {name, address, size, pseudocode, str_refs, imp_calls, packed_ascii}
+    Output: flat JSON {func_name: category}
+    """
+    fn_lines = []
+    for fn in functions_list:
+        calls = str(fn.get("imp_calls", []))[:100]
+        strs  = str(fn.get("str_refs", []))[:80]
+        pc    = fn.get("pseudocode", "")[:300]
+        fn_lines.append(
+            f"// {fn['name']} ({fn.get('size', 0)}B) calls={calls} strs={strs}\n{pc}"
+        )
+    fn_block = "\n---\n".join(fn_lines)
+    return (
+        f"Categorize ALL of these {len(functions_list)} functions into one of: "
+        "crypto, injection, anti_debug, network, util, entry.\n\n"
+        + fn_block
+        + '\n\nOutput ONLY raw JSON: {"FUN_xxx": "category", ...}'
+    )
+
+
+def _build_prompt_agent_f_name_mega(functions_list: list[dict],
+                                     category_map: dict[str, str]) -> str:
+    """Build Agent F Phase 2 mega-prompt: rename ALL functions in ONE call with category context.
+    Uses Gemini 1M context window — no batching needed.
+    functions_list: list of {name, address, size, pseudocode, str_refs, imp_calls, packed_ascii}
+    category_map: {func_name: category} from phase 1
+    Output: flat JSON {func_name: {name, purpose, category, confidence, key_evidence}}
+    """
+    fn_blocks = []
+    for fn in functions_list:
+        fname = fn["name"]
+        cat   = category_map.get(fname, "unknown")
+        header = (
+            f"// {fname} @ {fn.get('address','?')} ({fn.get('size', 0)}B)"
+            f"  category={cat}"
+            f"  calls={fn.get('imp_calls', [])[:4]}"
+            f"  strings={fn.get('str_refs', [])[:3]}"
+        )
+        if fn.get("packed_ascii"):
+            header += f"  packed={fn['packed_ascii'][:4]}"
+        fn_blocks.append(f"{header}\n{fn.get('pseudocode', '')[:500]}")
+
+    fn_block = "\n---\n".join(fn_blocks)
+    return (
+        f"Rename these {len(functions_list)} functions. "
+        "Use the category field to guide naming "
+        "(e.g., crypto→rc4_init, network→send_beacon, injection→inject_shellcode).\n\n"
+        + fn_block
+        + '\n\nOutput ONLY raw JSON with just the name string per function: '
+        '{"FUN_xxx": "descriptive_name", ...}'
+        ' — ONLY name strings, no nested objects. This keeps output compact.'
+    )
 
 
 def _build_prompt_synthesis(synthesis_doc: dict) -> str:
@@ -2419,9 +2804,15 @@ def _build_prompt_synthesis(synthesis_doc: dict) -> str:
             + "\n\n".join(adversarial_lines)
         )
 
+    crypto_inference_note = meta.get("agent_b_crypto_note") or ""
+    crypto_note_block = (
+        f"\n[!] CRYPTO NOTE: {crypto_inference_note}\n"
+        if crypto_inference_note else ""
+    )
+
     return f"""Analysis quality: {meta.get('analysis_quality','unknown')}
 Agents succeeded: {meta.get('agents_succeeded',0)}/5
-{conflict_text}
+{crypto_note_block}{conflict_text}
 {adversarial_block}
 
 {chr(10).join(agent_sections)}
@@ -2437,6 +2828,10 @@ key_artifacts (list), iocs (list), mitre_ttps (list),
 conflict_notes (list), missing_agents (list),
 findings (list of {{finding, evidence, source_agents, confidence}}),
 analysis_quality (full|partial|degraded).
+
+MECHANISM FIELD — must name the PRIMARY algorithm explicitly (XOR/RC4/AES/FNV-1a/syscall).
+Include the key value if identified. Start with the algorithm name.
+If Agent B algorithms_detected is empty, infer from xor_results/keys_found/decrypted_iocs/hidden_behaviors.
 Output raw JSON only."""
 
 
