@@ -1,0 +1,10 @@
+# Raw memory dumps are too large for git (253MB+)
+# Keep locally, don't push
+dumps/memory_dump_*.json
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Temp files
+_pgdump.bat
