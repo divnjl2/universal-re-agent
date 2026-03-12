@@ -1,70 +1,32 @@
 """
-RECOVERED: bybit_manager.database.models.common
-Skeleton reconstructed from Nuitka binary metadata.
+Common constants and utilities used across database models.
+
+Recovered from Nuitka binary metadata — column name constants for
+programmatic access to BybitAccount fields.
 """
 
-from . import *  # from bybit_manager.database.models
+# Column name constants (used by import/export and bulk operations)
+BYBIT_PASSWORD_COLUMN = "password"
+BYBIT_COOKIES_COLUMN = "cookies"
+BYBIT_PROXY_COLUMN = "proxy"
+BYBIT_TOTP_SECRET_COLUMN = "totp_secret"
+BYBIT_COUNTRY_CODE_COLUMN = "preferred_country_code"
+BYBIT_INVITER_REF_CODE = "inviter_ref_code"
+BYBIT_MNEMONIC_PHRASE = "web3_mnemonic_phrase"
 
-# === Constants ===
-BYBIT_CARD = None  # RECOVERED
-BYBIT_CARD_DEFAULT = None  # RECOVERED
-BYBIT_COMPONENT_ERROR = None  # RECOVERED
-BYBIT_COOKIES_COLUMN = None  # RECOVERED
-BYBIT_COUNTRY_CODE_COLUMN = None  # RECOVERED
-BYBIT_ERRORS = None  # RECOVERED
-BYBIT_HTML_ERROR = None  # RECOVERED
-BYBIT_INVITER_REF_CODE = None  # RECOVERED
-BYBIT_JSON_ERROR = None  # RECOVERED
-BYBIT_MNEMONIC_PHRASE = None  # RECOVERED
-BYBIT_PASSWORD_COLUMN = None  # RECOVERED
-BYBIT_PAY = None  # RECOVERED
-BYBIT_PROXY_COLUMN = None  # RECOVERED
-BYBIT_TOTP_SECRET_COLUMN = None  # RECOVERED
-COMMON_CHINESE_CHARACTERS = None  # RECOVERED
-COMMON_CJK_CHARACTERS = None  # RECOVERED
-COMMON_EXCEPTIONS = None  # RECOVERED
-COMMON_JAPANESE_CHARACTERS = None  # RECOVERED
-COMMON_KOREAN_CHARACTERS = None  # RECOVERED
-COMMON_NAME = None  # RECOVERED
-
-class AbstractAsyncContextManager(object):
-    """RECOVERED: AbstractAsyncContextManager from bybit_manager.database.models.common"""
-    pass
-
-class AbstractContextManager(object):
-    """RECOVERED: AbstractContextManager from bybit_manager.database.models.common"""
-    pass
-
-class AsyncCommon(object):
-    """RECOVERED: AsyncCommon from bybit_manager.database.models.common"""
-    pass
-
-class AsyncContextManager(object):
-    """RECOVERED: AsyncContextManager from bybit_manager.database.models.common"""
-    async def asynccontextmanager(self):  # RECOVERED
-        raise NotImplementedError
-
-
-class AsyncContextManagerMixin(object):
-    """RECOVERED: AsyncContextManagerMixin from bybit_manager.database.models.common"""
-    pass
-
-class AsyncPingManager(object):
-    """RECOVERED: AsyncPingManager from bybit_manager.database.models.common"""
-    pass
-
-class AwaitableOrContextManager(object):
-    """RECOVERED: AwaitableOrContextManager from bybit_manager.database.models.common"""
-    pass
-
-class AwaitableOrContextManagerWrapper(object):
-    """RECOVERED: AwaitableOrContextManagerWrapper from bybit_manager.database.models.common"""
-    pass
-
-class BybitCardCommission(object):
-    """RECOVERED: BybitCardCommission from bybit_manager.database.models.common"""
-    pass
-
-class BybitClient(object):
-    """RECOVERED: BybitClient from bybit_manager.database.models.common"""
-    pass
+# CJK character sets (used for name validation in KYC flows)
+COMMON_CHINESE_CHARACTERS = (
+    "\u4e00-\u9fff"  # CJK Unified Ideographs
+)
+COMMON_JAPANESE_CHARACTERS = (
+    "\u3040-\u309f"  # Hiragana
+    "\u30a0-\u30ff"  # Katakana
+)
+COMMON_KOREAN_CHARACTERS = (
+    "\uac00-\ud7af"  # Hangul Syllables
+)
+COMMON_CJK_CHARACTERS = (
+    COMMON_CHINESE_CHARACTERS
+    + COMMON_JAPANESE_CHARACTERS
+    + COMMON_KOREAN_CHARACTERS
+)

@@ -1,0 +1,34 @@
+{
+  "capture_time": "20260312_114944",
+  "total_packets": 1324,
+  "bot_packets": 1324,
+  "connections": 151,
+  "connect_targets": [],
+  "sni_targets": [
+    "api.edgeoffer.microsoft.com",
+    "assets.msn.com",
+    "browser.events.data.msn.com",
+    "c.bing.com",
+    "config.edge.skype.com",
+    "edge.microsoft.com",
+    "img-s-msn-com.akamaized.net",
+    "kws2.web.telegram.org",
+    "r.bing.com",
+    "r.msftstatic.com",
+    "srtb.msn.com",
+    "t.me",
+    "telegram.me",
+    "thaka.bing.com",
+    "v10.events.data.microsoft.com",
+    "v20.events.data.microsoft.com"
+  ],
+  "http_hosts": [
+    "edge.microsoft.com"
+  ],
+  "bot_pids": {
+    "7500": "Bybit Manager v3.exe",
+    "2796": "Bybit Manager v3.exe",
+    "6752": "KYC bot v1.exe",
+    "3880": "KYC bot v1.exe"
+  }
+}

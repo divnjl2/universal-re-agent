@@ -22,7 +22,7 @@ from bybit_manager.client import ClientPool, ManagedClient
 from bybit_manager.config import Config
 from bybit_manager.database.database import Database
 from bybit_manager.database.models import (
-    BybitAccount, Email, FinanceAccount,
+    BybitAccount, Email, FinanceAccount, FinanceAccountType,
     DepositAddress, DepositHistory,
     WithdrawAddress, WithdrawHistory,
     Award, AirdropHunt, TokenSplash, PuzzleHunt, IDO,
@@ -342,9 +342,6 @@ class Manager:
             if not account or not account.uid:
                 raise ValueError(f"Account {database_id} has no uid")
 
-            from bybit_manager.database.models.finance_account import (
-                FinanceAccountType,
-            )
             from sqlalchemy import delete as sa_delete
 
             # Clear old records
@@ -383,7 +380,7 @@ class Manager:
     ) -> int:
         """Fetch and sync deposit history. Returns count of new records."""
         client = await self.get_client(database_id)
-        history = await client.client.get_deposit_history()
+        history = await client.client.get_full_deposit_history()
 
         async with self.db.session() as session:
             account = await session.get(BybitAccount, database_id)

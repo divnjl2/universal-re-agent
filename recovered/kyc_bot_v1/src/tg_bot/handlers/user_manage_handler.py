@@ -200,7 +200,8 @@ async def cb_give_accounts(callback: CallbackQuery, **kwargs: Any) -> None:
 
     await callback.answer(f"Выдано {assigned} аккаунтов ({country_code}).", show_alert=True)
     # Navigate back to user profile
-    await cb_view_user.__wrapped__(callback, **kwargs) if hasattr(cb_view_user, '__wrapped__') else None
+    callback.data = f"user_{user_id}"
+    await cb_view_user(callback, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -241,11 +242,15 @@ async def cb_toggle_take(callback: CallbackQuery, **kwargs: Any) -> None:
 @router.callback_query(F.data.regexp(r"^block_\d+$"), IsAdmin())
 async def cb_block_user(callback: CallbackQuery, **kwargs: Any) -> None:
     user_id = int(callback.data.split("_")[1])
+    new_val = True
     async with get_session() as session:
         user = await get_user(session, user_id)
         if user:
             new_val = not user.active
             await update_user_field(session, user_id, active=new_val)
+        else:
+            await callback.answer("Пользователь не найден.", show_alert=True)
+            return
     status = "разблокирован ✅" if new_val else "заблокирован 🚫"
     await callback.answer(f"Пользователь {status}", show_alert=True)
 

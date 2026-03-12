@@ -3,7 +3,6 @@ RECOVERED: bybit.models.web3.staking
 Skeleton reconstructed from Nuitka binary metadata.
 """
 from pydantic import BaseModel, Field
-from pydantic import BaseModel, Field
 
 from . import *  # from bybit.models.web3
 

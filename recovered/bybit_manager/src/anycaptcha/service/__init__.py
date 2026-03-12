@@ -6,7 +6,7 @@ from .base import BaseService
 from .capmonster import CapMonsterService
 from .twocaptcha import TwoCaptchaService
 from .anti_captcha import AntiCaptchaService
-from .capsolver import CapSolverService
+from .capsolver import CapsolverService
 from .rucaptcha import RuCaptchaService
 from .azcaptcha import AZCaptchaService
 from .captcha_guru import CaptchaGuruService
@@ -20,7 +20,7 @@ __all__ = [
     "CapMonsterService",
     "TwoCaptchaService",
     "AntiCaptchaService",
-    "CapSolverService",
+    "CapsolverService",
     "RuCaptchaService",
     "AZCaptchaService",
     "CaptchaGuruService",

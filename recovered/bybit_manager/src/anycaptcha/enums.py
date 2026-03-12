@@ -21,7 +21,9 @@ class CaptchaType(str, Enum):
 class CaptchaServiceType(str, Enum):
     CAPMONSTER = "capmonster"
     ANTI_CAPTCHA = "anti_captcha"
+    ANTICAPTCHA = "anti_captcha"       # alias used by bybit_manager.captcha
     TWO_CAPTCHA = "2captcha"
+    TWOCAPTCHA = "2captcha"            # alias used by bybit_manager.captcha
     RUCAPTCHA = "rucaptcha"
     CAPSOLVER = "capsolver"
     AZCAPTCHA = "azcaptcha"

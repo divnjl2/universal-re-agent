@@ -50,6 +50,11 @@ class CapMonsterService:
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(
                 timeout=aiohttp.ClientTimeout(total=30),
+                headers={
+                    "User-Agent": "python-anycaptcha",
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
             )
         return self._session
 
@@ -61,8 +66,7 @@ class CapMonsterService:
             task["type"] = "RecaptchaV2TaskProxyless" if not captcha.proxy else "RecaptchaV2Task"
             task["websiteURL"] = captcha.page_url
             task["websiteKey"] = captcha.site_key
-            if captcha.invisible:
-                task["isInvisible"] = True
+            task["isInvisible"] = 0
             if captcha.enterprise:
                 task["isEnterprise"] = True
 
@@ -75,7 +79,6 @@ class CapMonsterService:
                 task["geetestApiServerSubdomain"] = captcha.api_server
 
         elif isinstance(captcha, GeeTestV4):
-            task["type"] = "RecaptchaV2TaskProxyless"  # CapMonster maps GeeTest v4 differently
             task["type"] = "GeeTestTaskProxyless" if not captcha.proxy else "GeeTestTask"
             task["websiteURL"] = captcha.page_url
             task["gt"] = captcha.captcha_id
@@ -84,23 +87,10 @@ class CapMonsterService:
         else:
             raise AnyCaptchaException(f"Unsupported captcha type: {type(captcha).__name__}")
 
-        # Add proxy info if present
+        # Add proxy as single string (matching traffic format)
         if captcha.proxy:
-            proxy_parts = captcha.proxy.replace("http://", "").replace("https://", "")
-            if "@" in proxy_parts:
-                auth, host = proxy_parts.split("@", 1)
-                login, password = auth.split(":", 1)
-                host_parts = host.split(":")
-                task["proxyType"] = captcha.proxy_type
-                task["proxyAddress"] = host_parts[0]
-                task["proxyPort"] = int(host_parts[1]) if len(host_parts) > 1 else 80
-                task["proxyLogin"] = login
-                task["proxyPassword"] = password
-            else:
-                host_parts = proxy_parts.split(":")
-                task["proxyType"] = captcha.proxy_type
-                task["proxyAddress"] = host_parts[0]
-                task["proxyPort"] = int(host_parts[1]) if len(host_parts) > 1 else 80
+            proxy_str = captcha.proxy.replace("http://", "").replace("https://", "")
+            task["proxy"] = proxy_str
 
         if captcha.user_agent:
             task["userAgent"] = captcha.user_agent
@@ -137,9 +127,14 @@ class CapMonsterService:
     async def get_result(self, task_id: str) -> Dict[str, Any]:
         """Get task result. Returns solution dict or raises."""
         session = await self._ensure_session()
+        # CapMonster expects taskId as integer
+        try:
+            tid = int(task_id)
+        except (ValueError, TypeError):
+            tid = task_id
         payload = {
             "clientKey": self.api_key,
-            "taskId": task_id,
+            "taskId": tid,
         }
 
         async with session.post(f"{self.base_url}/getTaskResult", json=payload) as resp:
@@ -175,6 +170,13 @@ class CapMonsterService:
 
             solution = await self.get_result(task_id)
             if solution:
+                # Return the specific solution type when possible
+                if isinstance(captcha, RecaptchaV2):
+                    return RecaptchaV2Solution(solution=solution, task_id=task_id)
+                if isinstance(captcha, GeeTest):
+                    return GeeTestSolution(solution=solution, task_id=task_id)
+                if isinstance(captcha, GeeTestV4):
+                    return GeeTestV4Solution(solution=solution, task_id=task_id)
                 return BaseCaptchaSolution(solution=solution, task_id=task_id)
 
         raise CaptchaTimeout(f"Timeout after {timeout}s for task {task_id}")

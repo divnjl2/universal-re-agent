@@ -10,12 +10,16 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("app.routers.kyc")
 
 router = APIRouter()
+
+
+def _get_manager(request: Request):
+    return request.app.state.manager
 
 
 class KYCCheckRequest(BaseModel):
@@ -46,54 +50,113 @@ class BulkOperationResult(BaseModel):
 
 
 @router.post("/check", response_model=BulkOperationResult)
-async def check_kyc_status(request: KYCCheckRequest):
+async def check_kyc_status(body: KYCCheckRequest, request: Request):
     """Check KYC status for multiple accounts."""
+    manager = _get_manager(request)
     results = BulkOperationResult()
-    for db_id in request.database_ids:
+    for db_id in body.database_ids:
         try:
+            client = await manager.get_client(db_id)
+            resp = await client.client.get_kyc_info()
+            kyc_data = resp.result if hasattr(resp, "result") else {}
+            kyc_level = None
+            kyc_status = None
+            if isinstance(kyc_data, dict):
+                kyc_level = kyc_data.get("kyc_level", kyc_data.get("level"))
+                kyc_status = kyc_data.get("kyc_status", kyc_data.get("status"))
+            # Persist to DB
+            await manager.update_account(
+                db_id,
+                kyc_level=kyc_level,
+                kyc_status=kyc_status,
+            )
             results.success.append({
                 "database_id": db_id,
-                "kyc_level": None,
-                "kyc_status": None,
+                "kyc_level": kyc_level,
+                "kyc_status": kyc_status,
+                "details": kyc_data,
             })
         except Exception as e:
+            logger.error("KYC check failed for %d: %s", db_id, e)
             results.failed.append({"database_id": db_id, "error": str(e)})
     return results
 
 
 @router.get("/status/{database_id}")
-async def get_kyc_status(database_id: int):
+async def get_kyc_status(database_id: int, request: Request):
     """Get detailed KYC status for one account."""
-    return {"database_id": database_id, "kyc_level": None, "kyc_status": None}
+    manager = _get_manager(request)
+    try:
+        client = await manager.get_client(database_id)
+        resp = await client.client.get_kyc_info()
+        kyc_data = resp.result if hasattr(resp, "result") else {}
+        kyc_level = None
+        kyc_status = None
+        if isinstance(kyc_data, dict):
+            kyc_level = kyc_data.get("kyc_level", kyc_data.get("level"))
+            kyc_status = kyc_data.get("kyc_status", kyc_data.get("status"))
+        return {
+            "database_id": database_id,
+            "kyc_level": kyc_level,
+            "kyc_status": kyc_status,
+            "details": kyc_data,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/submit", response_model=BulkOperationResult)
-async def submit_kyc(request: KYCSubmitRequest):
-    """Submit KYC verification for accounts."""
+async def submit_kyc(body: KYCSubmitRequest, request: Request):
+    """Submit KYC verification for accounts.
+
+    NOTE: Full KYC document submission requires provider SDK integration
+    (SumSub/Onfido/AAI) which depends on external services. This endpoint
+    sets the provider; actual document upload flows are provider-specific.
+    """
+    manager = _get_manager(request)
     results = BulkOperationResult()
-    for db_id in request.database_ids:
+    provider_map = {
+        "sumsub": "PROVIDER_SUMSUB",
+        "onfido": "PROVIDER_ONFIDO",
+        "aai": "PROVIDER_AAI",
+        "jumio": "PROVIDER_JUMIO",
+    }
+    provider_value = provider_map.get(body.provider.lower(), f"PROVIDER_{body.provider.upper()}")
+    for db_id in body.database_ids:
         try:
+            client = await manager.get_client(db_id)
+            resp = await client.client.set_kyc_provider(provider=provider_value)
             results.success.append({
                 "database_id": db_id,
-                "provider": request.provider,
-                "status": "submitted",
+                "provider": body.provider,
+                "status": "provider_set",
+                "result": resp.result if hasattr(resp, "result") else {},
             })
         except Exception as e:
+            logger.error("KYC submit failed for %d: %s", db_id, e)
             results.failed.append({"database_id": db_id, "error": str(e)})
     return results
 
 
 @router.post("/questionnaire", response_model=BulkOperationResult)
-async def submit_questionnaire(request: QuestionnaireRequest):
+async def submit_questionnaire(body: QuestionnaireRequest, request: Request):
     """Submit KYC questionnaire for accounts."""
+    manager = _get_manager(request)
     results = BulkOperationResult()
-    for db_id in request.database_ids:
+    # Convert dict answers to list format expected by the API
+    answers_list = [
+        {"question": k, "answer": v} for k, v in body.answers.items()
+    ] if isinstance(body.answers, dict) else body.answers
+    for db_id in body.database_ids:
         try:
+            client = await manager.get_client(db_id)
+            resp = await client.client.submit_kyc_questionnaire(answers_list)
             results.success.append({
                 "database_id": db_id,
                 "status": "questionnaire_submitted",
             })
         except Exception as e:
+            logger.error("Questionnaire submit failed for %d: %s", db_id, e)
             results.failed.append({"database_id": db_id, "error": str(e)})
     return results
 

@@ -5,8 +5,6 @@ Table: deposit_address (PK: address + memo + uid)
 Migration: 2024_12_27 — 9f17e744cf77 (initial)
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String

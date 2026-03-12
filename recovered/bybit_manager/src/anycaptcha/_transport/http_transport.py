@@ -3,7 +3,7 @@ RECOVERED: anycaptcha._transport.http_transport
 Skeleton reconstructed from Nuitka binary metadata.
 """
 
-from . import *  # from anycaptcha._transport
+# from . import *  # removed: circular import from Nuitka skeleton
 
 # === Constants ===
 AIOHTTP_NOSENDFILE = None  # RECOVERED

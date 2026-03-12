@@ -1,0 +1,17 @@
+{
+  "capture_time": "20260312_111958",
+  "total_packets": 307,
+  "bot_packets": 307,
+  "connections": 30,
+  "connect_targets": [],
+  "sni_targets": [
+    "api.adspowerapp.com",
+    "logger.adspower.net",
+    "settings-win.data.microsoft.com"
+  ],
+  "http_hosts": [],
+  "bot_pids": {
+    "23148": "KYC bot v1.exe",
+    "21096": "KYC bot v1.exe"
+  }
+}

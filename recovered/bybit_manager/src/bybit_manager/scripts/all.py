@@ -1,69 +1,126 @@
 """
-RECOVERED: bybit_manager.scripts.all
-Skeleton reconstructed from Nuitka binary metadata.
+Combined schemas for running all script operations together.
+
+Provides AllSchemas — a unified request model that can dispatch
+to any of the individual script modules.
 """
+
+from __future__ import annotations
+
+import logging
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
-from . import *  # from bybit_manager.scripts
+from bybit_manager.manager import Manager
+from bybit_manager.scripts.account_action import (
+    AccountActionType,
+    AccountActionRequest,
+    run_account_action,
+)
+from bybit_manager.scripts.browser import (
+    BrowserActionType,
+    BrowserRequest,
+    run_browser_action,
+)
+from bybit_manager.scripts.custom_request import (
+    CustomRequestParams,
+    run_custom_request,
+)
+from bybit_manager.scripts.excel import (
+    import_accounts_from_excel,
+    export_accounts_to_excel,
+)
+from bybit_manager.scripts.imap import run_imap_check
+from bybit_manager.scripts.kyc import run_kyc_action
 
-# === Constants ===
-ACCESS_ALLOWED_ACE_TYPE = None  # RECOVERED
-ACCESS_CONTROL_ALLOW_CREDENTIALS = None  # RECOVERED
-ACCESS_CONTROL_ALLOW_HEADERS = None  # RECOVERED
-ACCESS_CONTROL_ALLOW_METHODS = None  # RECOVERED
-ACCESS_CONTROL_ALLOW_ORIGIN = None  # RECOVERED
-ACCOUNT_TYPE_COPY_TRADE_ALL = None  # RECOVERED
-ALLOCATED = None  # RECOVERED
-ALLOWED = None  # RECOVERED
-ALLOWED_CLOSE_CODES = None  # RECOVERED
-ALLOWED_REVISIONS = None  # RECOVERED
-ALLOW_DISPLAY_NAME = None  # RECOVERED
-ALLOW_DOMAIN_LITERAL = None  # RECOVERED
-ALLOW_EMPTY_LOCAL = None  # RECOVERED
-ALLOW_INF_NAN = None  # RECOVERED
-ALLOW_QUOTED_LOCAL = None  # RECOVERED
-ALLOW_SMTPUTF8 = None  # RECOVERED
-ALL_BYTES = None  # RECOVERED
-ALL_COMPLETED = None  # RECOVERED
-ALL_CTRL = None  # RECOVERED
-ALL_KEYS = None  # RECOVERED
+logger = logging.getLogger("bybit_manager.scripts.all")
 
-class AbstractAsyncContextManager(object):
-    """RECOVERED: AbstractAsyncContextManager from bybit_manager.scripts.all"""
-    pass
-
-class AbstractContextManager(object):
-    """RECOVERED: AbstractContextManager from bybit_manager.scripts.all"""
-    pass
 
 class AllSchemas(BaseModel):
-    """RECOVERED: AllSchemas from bybit_manager.scripts.all"""
-    pass
+    """Unified request schema that can dispatch to any script action.
 
-class AllowInfNan(object):
-    """RECOVERED: AllowInfNan from bybit_manager.scripts.all"""
-    pass
+    Set exactly one of: account_action, browser_action, custom_request,
+    excel_import, excel_export, imap_check, kyc_action.
+    """
+    # Account actions
+    account_action: Optional[AccountActionRequest] = None
 
-class AllowedECKeys(object):
-    """RECOVERED: AllowedECKeys from bybit_manager.scripts.all"""
-    pass
+    # Browser actions
+    browser_action: Optional[BrowserRequest] = None
 
-class AllowedOKPKeys(object):
-    """RECOVERED: AllowedOKPKeys from bybit_manager.scripts.all"""
-    pass
+    # Custom request
+    custom_request: Optional[CustomRequestParams] = None
+    custom_request_database_ids: List[int] = Field(default_factory=list)
+    custom_request_concurrency: int = 5
 
-class AllowedRSAKeys(object):
-    """RECOVERED: AllowedRSAKeys from bybit_manager.scripts.all"""
-    pass
+    # Excel
+    excel_import_path: Optional[str] = None
+    excel_import_group: str = "no_group"
+    excel_export_path: Optional[str] = None
+    excel_export_group: Optional[str] = None
 
-class AllowsLambdaRole(object):
-    """RECOVERED: AllowsLambdaRole from bybit_manager.scripts.all"""
-    pass
+    # IMAP check
+    imap_check_database_ids: List[int] = Field(default_factory=list)
+    imap_check_concurrency: int = 5
 
-class AlloyLexer(object):
-    """RECOVERED: AlloyLexer from bybit_manager.scripts.all"""
-    pass
+    # KYC
+    kyc_action: Optional[str] = None
+    kyc_database_ids: List[int] = Field(default_factory=list)
+    kyc_concurrency: int = 3
+    kyc_kwargs: Dict[str, Any] = Field(default_factory=dict)
 
-class AnyAll(object):
-    """RECOVERED: AnyAll from bybit_manager.scripts.all"""
-    pass
+
+async def run_all(manager: Manager, schema: AllSchemas) -> Dict[str, Any]:
+    """Dispatch to the appropriate script based on what's set in schema."""
+    results: Dict[str, Any] = {}
+
+    if schema.account_action:
+        results["account_action"] = await run_account_action(
+            manager, schema.account_action,
+        )
+
+    if schema.browser_action:
+        results["browser_action"] = await run_browser_action(
+            manager, schema.browser_action,
+        )
+
+    if schema.custom_request and schema.custom_request_database_ids:
+        results["custom_request"] = await run_custom_request(
+            manager,
+            schema.custom_request_database_ids,
+            schema.custom_request,
+            concurrency=schema.custom_request_concurrency,
+        )
+
+    if schema.excel_import_path:
+        results["excel_import"] = await import_accounts_from_excel(
+            manager,
+            schema.excel_import_path,
+            group_name=schema.excel_import_group,
+        )
+
+    if schema.excel_export_path:
+        results["excel_export"] = await export_accounts_to_excel(
+            manager,
+            schema.excel_export_path,
+            group_name=schema.excel_export_group,
+        )
+
+    if schema.imap_check_database_ids:
+        results["imap_check"] = await run_imap_check(
+            manager,
+            schema.imap_check_database_ids,
+            concurrency=schema.imap_check_concurrency,
+        )
+
+    if schema.kyc_action and schema.kyc_database_ids:
+        results["kyc"] = await run_kyc_action(
+            manager,
+            schema.kyc_database_ids,
+            action=schema.kyc_action,
+            concurrency=schema.kyc_concurrency,
+            **schema.kyc_kwargs,
+        )
+
+    return results

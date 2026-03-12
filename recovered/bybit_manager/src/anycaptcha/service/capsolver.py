@@ -13,7 +13,7 @@ from .base import BaseService
 logger = logging.getLogger("anycaptcha.service.capsolver")
 
 
-class CapSolverService(BaseService):
+class CapsolverService(BaseService):
     """capsolver.com captcha solving service."""
 
     BASE_URL = "https://api.capsolver.com"

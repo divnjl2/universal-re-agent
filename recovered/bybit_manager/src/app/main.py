@@ -26,6 +26,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import (
     awarding,
+    byfi,
+    byvote,
     captcha,
     contract,
     database as db_router,
@@ -46,9 +48,10 @@ from .routers import (
     web3 as web3_router,
     withdraw,
 )
-from ..bybit_manager.database.database import Database
-from ..bybit_manager.config import Config
-from ..bybit_manager.license import LicenseChecker
+from bybit_manager.database.database import Database
+from bybit_manager.config import Config
+from bybit_manager.license import LicenseChecker
+from bybit_manager.manager import Manager
 
 logger = logging.getLogger("app.main")
 
@@ -63,17 +66,21 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting %s %s", APP_TITLE, APP_VERSION)
 
-    # Initialize database
+    # Initialize database and manager
     config = app.state.config
     db = Database(url=config.database_url)
     await db.init()
     app.state.db = db
 
+    manager = Manager(config)
+    await manager.init()
+    app.state.manager = manager
+
     # Check license
     if config.license_key:
         license_checker = LicenseChecker(
             license_key=config.license_key,
-            license_server=config.license_server,
+            server_url=getattr(config, "license_server", "https://ishushka.com"),
         )
         is_valid = await license_checker.check()
         if not is_valid:
@@ -86,6 +93,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Shutting down...")
+    await manager.shutdown()
     await db.close()
 
 
@@ -130,6 +138,14 @@ def create_app(config: Optional[Config] = None) -> FastAPI:
     app.include_router(ido.router, prefix="/ido", tags=["ido"])
     app.include_router(demo_trading.router, prefix="/demo-trading", tags=["demo-trading"])
     app.include_router(web3_router.router, prefix="/web3", tags=["web3"])
+    app.include_router(byfi.router, prefix="/byfi", tags=["byfi"])
+    app.include_router(byvote.router, prefix="/byvote", tags=["byvote"])
+
+    # iCloud Hide My Email generator
+    from bybit_manager.icloud_hme import create_hme_router
+    from .routers import autoreg
+    app.include_router(create_hme_router(), prefix="/hme", tags=["icloud-hme"])
+    app.include_router(autoreg.router, prefix="/autoreg", tags=["autoreg"])
 
     @app.get("/")
     async def root():

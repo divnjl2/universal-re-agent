@@ -5,8 +5,6 @@ Table: withdraw_address (PK: id + uid)
 Migration: 2024_12_27 — 9f17e744cf77 (initial)
 """
 
-from __future__ import annotations
-
 from typing import Optional
 
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String

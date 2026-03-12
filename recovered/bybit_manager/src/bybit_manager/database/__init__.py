@@ -1,6 +1,67 @@
 """
-RECOVERED: bybit_manager.database
+bybit_manager.database — async database layer (SQLAlchemy 2.0 + asyncpg).
+
+Re-exports Database class and all ORM models for convenience.
 """
-# from .crud import ...
-# from .database import ...
-# from .models import ...
+
+from .database import Database
+from .models import (
+    Base,
+    Email,
+    BybitAccount,
+    FinanceAccount,
+    FinanceAccountType,
+    DepositAddress,
+    DepositHistory,
+    WithdrawAddress,
+    WithdrawHistory,
+    Award,
+    AwardStatus,
+    AwardUsingStatus,
+    AwardType,
+    AwardAmountUnit,
+    BusinessNo,
+    AutoClaimType,
+    ProductLine,
+    SubProductLine,
+    AirdropHunt,
+    TokenSplash,
+    PuzzleHunt,
+    IDO,
+    Web3Wallet,
+    WalletType,
+    Web3Chain,
+    Web3ChainType,
+    Web3Token,
+)
+
+__all__ = [
+    "Database",
+    "Base",
+    "Email",
+    "BybitAccount",
+    "FinanceAccount",
+    "FinanceAccountType",
+    "DepositAddress",
+    "DepositHistory",
+    "WithdrawAddress",
+    "WithdrawHistory",
+    "Award",
+    "AwardStatus",
+    "AwardUsingStatus",
+    "AwardType",
+    "AwardAmountUnit",
+    "BusinessNo",
+    "AutoClaimType",
+    "ProductLine",
+    "SubProductLine",
+    "AirdropHunt",
+    "TokenSplash",
+    "PuzzleHunt",
+    "IDO",
+    "Web3Wallet",
+    "WalletType",
+    "Web3Chain",
+    "Web3ChainType",
+    "Web3Token",
+]

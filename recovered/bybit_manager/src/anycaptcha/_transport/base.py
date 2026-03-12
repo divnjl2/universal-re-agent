@@ -3,7 +3,7 @@ RECOVERED: anycaptcha._transport.base
 Skeleton reconstructed from Nuitka binary metadata.
 """
 
-from . import *  # from anycaptcha._transport
+# from . import *  # removed: circular import from Nuitka skeleton
 
 # === Constants ===
 APPX_E_DELTA_BASELINE_VERSION_MISMATCH = None  # RECOVERED

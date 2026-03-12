@@ -13,7 +13,7 @@ import imaplib
 import logging
 import re
 import ssl
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from email.header import decode_header
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -42,8 +42,14 @@ BYBIT_SENDERS = [
     "noreply@bybit.com",
 ]
 
-# Regex to extract 6-digit verification code
-CODE_PATTERN = re.compile(r"\b(\d{6})\b")
+# Regex patterns to extract 6-digit verification code (ordered by specificity)
+# Bybit typically sends codes like "Your verification code is: 123456"
+# or "verification code is 123456" or just a 6-digit code in subject
+CODE_PATTERNS = [
+    re.compile(r"(?:verification|verify|code|confirm)[^0-9]{0,30}(\d{6})", re.IGNORECASE),
+    re.compile(r"(\d{6})[^0-9]{0,30}(?:verification|verify|code|confirm)", re.IGNORECASE),
+    re.compile(r"\b(\d{6})\b"),  # fallback: any standalone 6-digit number
+]
 
 
 def _get_imap_server(email_address: str) -> Tuple[str, int]:
@@ -68,11 +74,15 @@ def _decode_header_value(value: str) -> str:
 
 
 def _extract_code_from_text(text: str) -> Optional[str]:
-    """Extract 6-digit Bybit verification code from text."""
-    matches = CODE_PATTERN.findall(text)
-    if matches:
-        # Return the first 6-digit code found
-        return matches[0]
+    """Extract 6-digit Bybit verification code from text.
+
+    Tries specific patterns first (e.g. 'verification code is 123456'),
+    falls back to any standalone 6-digit number.
+    """
+    for pattern in CODE_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            return match.group(1)
     return None
 
 
@@ -153,6 +163,31 @@ class ImapClient:
                 pass
             self._connection = None
 
+    async def get_verification_code(
+        self,
+        email: str = "",
+        subject_filter: str = "Bybit",
+        max_age_seconds: int = 300,
+    ) -> Optional[str]:
+        """Single-pass search for a Bybit verification code in recent emails.
+
+        This method does NOT poll — the caller (PrivateClient._wait_for_email_code)
+        handles the retry/polling loop.
+
+        Args:
+            email: Email address (unused, kept for interface compatibility;
+                   the connection is already bound to self.email_address).
+            subject_filter: Filter string that must appear in the email subject.
+            max_age_seconds: Max age of email to consider (default 5 min).
+
+        Returns:
+            6-digit code string or None.
+        """
+        code = await self._search_for_code(subject_filter, max_age_seconds)
+        if code:
+            logger.info("Found Bybit code for %s", self.email_address)
+        return code
+
     async def get_bybit_code(
         self,
         subject_contains: Optional[str] = None,
@@ -208,7 +243,7 @@ class ImapClient:
 
         # Search for recent emails from Bybit
         since_date = (
-            datetime.utcnow() - timedelta(seconds=max_age_seconds)
+            datetime.now(timezone.utc) - timedelta(seconds=max_age_seconds)
         ).strftime("%d-%b-%Y")
 
         _, msg_ids = await loop.run_in_executor(

@@ -5,8 +5,6 @@ Table: puzzlehunt (PK: code + uid)
 Migration: 2025_04_27 — da83cafe8bb6
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 from typing import Optional
 

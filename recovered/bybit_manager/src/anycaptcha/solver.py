@@ -61,7 +61,7 @@ class CaptchaSolver:
         from .service.capmonster import CapMonsterService
         from .service.twocaptcha import TwoCaptchaService
         from .service.anti_captcha import AntiCaptchaService
-        from .service.capsolver import CapSolverService
+        from .service.capsolver import CapsolverService
         from .service.rucaptcha import RuCaptchaService
         from .service.azcaptcha import AzCaptchaService
 
@@ -70,7 +70,7 @@ class CaptchaSolver:
             "anti_captcha": AntiCaptchaService,
             "2captcha": TwoCaptchaService,
             "rucaptcha": RuCaptchaService,
-            "capsolver": CapSolverService,
+            "capsolver": CapsolverService,
             "azcaptcha": AzCaptchaService,
         }
 

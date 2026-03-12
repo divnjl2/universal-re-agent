@@ -1,0 +1,328 @@
+{
+  "GET api2.bybitglobal.com/v3/private/cht/asset-common/total-balance": {
+    "count": 188,
+    "sample_headers": {
+      "Host": "api2.bybitglobal.com",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Google Chrome\";v=\"136\", \"Chromium\";v=\"136\", \"Not.A/Brand\";v=\"24\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "accept-language": "en-US,en",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "lang": "en-US",
+      "origin": "https://www.bybitglobal.com",
+      "referer": "https://www.bybitglobal.com/",
+      "platform": "pc",
+      "priority": "u=1, i",
+      "traceparent": "00-d0456bceacbf6c0947ead007259ac1ad-625f1d4bfbeafddb-00",
+      "guid": "9e8cfdb0-2804-4b23-9764-3e36fdb4c454",
+      "Cookie": "_by_l_g_d=9e8cfdb0-2804-4b23-9764-3e36fdb4c454; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%20%2219ce384673c73-ad3ddf47767e8a-26011f51-2073600-19ce384673ddf%22%2C%20%22first_id%22%3A%20%22%22%2C%20%22props%22%3A%20%7B%7D%2C%20%22identities%22%3A%20%22eyIkaWRlbnRpdHlfY29va2llX2lkIjogIjE5Y2UzODQ2NzNjNzMtYWQzZGRmNDc3NjdlOGEtMjYwMTFmNTEtMjA3MzYwMC0xOWNlMzg0NjczZGRmIn0%3D%22%2C%20%22history_login_id%22%3A%20%7B%22name%22%3A%20%22%22%2C%20%22value%22%3A%20%22%22%7D%7D; deviceId=57cecd2b-28b2-4da7-856a-ceae521fe761; BYBIT_REG_REF_prod={\"lang\": \"en\", \"g\": \"9e8cfdb0-2804-4b23-9764-3e36fdb4c454\", \"medium\": \"direct\", \"url\": \"www.google.com/\", \"last_refresh_time\": \"Thu, 12 Mar 2026 12:27:11 GMT\"}; sajssdk_2015_cross_new_user=1; _tt_enable_cookie=1"
+    },
+    "sample_req_body": null,
+    "sample_resp_header": "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: https://www.bybitglobal.com\r\nAccess-Control-Expose-Headers: traceid,token,guid,txid,Content-Disposition,X-Signature\r\nAccess-Control-Allow-Credentials: true\r\nRet_code: 10007\r\nTraceid: d0456bceacbf6c0947ead007259ac1ad\r\nTimenow: 1773343648883\r\nServer: Openresty\r\nx-cld-src: Loc-A\r\nAccess-Control-Allow-Methods: PUT,GET,POST,OPTIONS,DELETE,PATCH,HEAD\r\nAccess-Control-Max-Age: 259200\r\nCache-Control: no-store\r\nCo",
+    "sample_resp_body": {
+      "ret_code": 10007,
+      "ret_msg": "User authentication failed.",
+      "result": {},
+      "ext_code": "",
+      "ext_info": null,
+      "time_now": "1773343648.883838"
+    }
+  },
+  "GET api2.bybitglobal.com/fiat/private/fund-account/balance-list": {
+    "count": 150,
+    "sample_headers": {
+      "Host": "api2.bybitglobal.com",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Google Chrome\";v=\"135\", \"Chromium\";v=\"135\", \"Not.A/Brand\";v=\"24\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "accept-language": "en-US,en",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "lang": "en-US",
+      "origin": "https://www.bybitglobal.com",
+      "referer": "https://www.bybitglobal.com/",
+      "platform": "pc",
+      "priority": "u=1, i",
+      "traceparent": "00-7cded5dbce2feb5d7a4eec1fe6570dcb-52ab6ac4f72f83d7-00",
+      "guid": "8192756c-7458-49ab-a6af-1d237fd47a76",
+      "Cookie": "_by_l_g_d=8192756c-7458-49ab-a6af-1d237fd47a76; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%20%2219ce3844aa34b-0268ee8f06b657-26011c51-2073600-19ce3844aa4d4%22%2C%20%22first_id%22%3A%20%22%22%2C%20%22props%22%3A%20%7B%7D%2C%20%22identities%22%3A%20%22eyIkaWRlbnRpdHlfY29va2llX2lkIjogIjE5Y2UzODQ0YWEzNGItMDI2OGVlOGYwNmI2NTctMjYwMTFjNTEtMjA3MzYwMC0xOWNlMzg0NGFhNGQ0In0%3D%22%2C%20%22history_login_id%22%3A%20%7B%22name%22%3A%20%22%22%2C%20%22value%22%3A%20%22%22%7D%7D; deviceId=64bbe54f-57c4-4668-a8a8-202e0bd452c7; BYBIT_REG_REF_prod={\"lang\": \"en\", \"g\": \"8192756c-7458-49ab-a6af-1d237fd47a76\", \"medium\": \"direct\", \"url\": \"www.google.com/\", \"last_refresh_time\": \"Thu, 12 Mar 2026 12:27:03 GMT\"}; sajssdk_2015_cross_new_user=1; _tt_enable_cookie=1; EO-Bot-Session=PrdPKOwIlSlj9XYYfCSpzxbjAXfe-P98WQzpa6zNza3VNsOHAkFmmbNkeIxQfeNi; EO-Bot-SessionId=7515779570998990747; EO-Bot-Token=; self-unbind-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJNZW1iZXJJRCI6NTQ0OTk1NjIzLCJMb2dpblN0YXR1cyI6MiwiVHJpZ2VyVGltZSI6MTc3MzM0MzYyNSwiU2VjdXJpdHlJdGVtIjowLCJDdXJyZW50U3RlcCI6MCwia3ljRmFpbGVkVGhyZWVUaW1lcyI6MCwiVmVyaWZpZWRJdGVtcyI6IiIsIkxvZ2ljYXR0ciI6IiIsIlJpc2t0b2tlbiI6IjUwNzY1NDI5OTc5OTcxNTcyMTU4NzAzMDAwMSNhOWMwODFiMGQwIiwiV2FzUHJlU2VsZlVuYmluZFRva2VuIjpmYWxzZSwiVmllcmZ5UmVzdWx0U2NlbmVDYWNoZWtleSI6IiIsIlJlcXVpcmVkU3RhZ3kiOiIiLCJSaXNrVG9rZW5UeXBlIjoiIiwiTmV3Q291bnRyeUNvZGUiOiIiLCJOZXdNb2JpbGUiOiIiLCJOZXdFbWFpbCI6IiIsInN1YiI6InNlbGZfdW5iaW5kIiwiZXhwIjoxNzczMzQ3MjI1LCJuYmYiOjE3NzMzNDM2MjV9.axMPFdFfnchEw_JRG0Azhy6NkEf_dQFG_OfERrBP2DM; isLogin=1; secure-token=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo1NDQ5OTU2MjMsImIiOjAsInAiOjMsInVhIjoiIiwiZ2VuX3RzIjoxNzczMzQzNjg2LCJleHAiOjE3NzM2MDI4ODYsIm5zIjoiIiwiZXh0Ijp7IlN0YXRpb24tVHlwZSI6IiIsIm1jdCI6IjE3NzAzMTkwNDQiLCJzaWQiOiJCWUJJVCJ9LCJkIjp0cnVlLCJzaWQiOiJCWUJJVCJ9.lvdkS14ZPxLz1Mk4EBrNv8zGFEMmFUqbPZn8w55AbNsvIQ2q4ZDRT5fCExEpVDtysB5JEP_fOEWc8VJX12Eraw"
+    },
+    "sample_req_body": null,
+    "sample_resp_header": "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: https://www.bybitglobal.com\r\nAccess-Control-Expose-Headers: traceid,token,guid,txid,Content-Disposition,X-Signature\r\nAccess-Control-Allow-Credentials: true\r\nRet_code: 0\r\nTraceid: 2afabac8e4d0a4d909211d14ce8fa43e\r\nTimenow: 1773343687200\r\nSet-Cookie: isLogin=1; expires=Mon, 11 May 2026 19:28:07 GMT; domain=.bybitglobal.com; path=/; secure; SameSite=Lax\r\nServer: Openresty\r\nx-cld-src: Loc-A\r\nAccess-Control-A",
+    "sample_resp_body": "4c3\r\n<bin 1219B>\r\n0\r\n\r\n"
+  },
+  "POST api2.bybitglobal.com/siteapi/unified/private/account-walletbalance": {
+    "count": 148,
+    "sample_headers": {
+      "Host": "api2.bybitglobal.com",
+      "Content-Length": "0",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Google Chrome\";v=\"134\", \"Chromium\";v=\"134\", \"Not.A/Brand\";v=\"24\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "accept-language": "en-US,en",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "lang": "en-US",
+      "origin": "https://www.bybitglobal.com",
+      "referer": "https://www.bybitglobal.com/",
+      "platform": "pc",
+      "priority": "u=1, i",
+      "traceparent": "00-6687a6fbf9ab685024fd46e9bb2faf17-eb4881b10a5acb2a-00",
+      "guid": "60b58b80-bab2-43ca-855e-48b48b1e687f",
+      "Cookie": "_by_l_g_d=60b58b80-bab2-43ca-855e-48b48b1e687f; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%20%2219ce38449135d-dc4d62feea4b91-26011d51-2073600-19ce3844914b1%22%2C%20%22first_id%22%3A%20%22%22%2C%20%22props%22%3A%20%7B%7D%2C%20%22identities%22%3A%20%22eyIkaWRlbnRpdHlfY29va2llX2lkIjogIjE5Y2UzODQ0OTEzNWQtZGM0ZDYyZmVlYTRiOTEtMjYwMTFkNTEtMjA3MzYwMC0xOWNlMzg0NDkxNGIxIn0%3D%22%2C%20%22history_login_id%22%3A%20%7B%22name%22%3A%20%22%22%2C%20%22value%22%3A%20%22%22%7D%7D; deviceId=6b69d507-5b43-48a7-a5a4-21ca65e5d306; BYBIT_REG_REF_prod={\"lang\": \"en\", \"g\": \"60b58b80-bab2-43ca-855e-48b48b1e687f\", \"medium\": \"direct\", \"url\": \"www.google.com/\", \"last_refresh_time\": \"Thu, 12 Mar 2026 12:27:03 GMT\"}; sajssdk_2015_cross_new_user=1; _tt_enable_cookie=1; EO-Bot-Session=N3na7JQkY_969FF2qUTnWce5szKF4K8x5cH-JQ3JAFLmQuHHjvrBALsUYnfmwcgd; EO-Bot-SessionId=877473720254881203; EO-Bot-Token=; self-unbind-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJNZW1iZXJJRCI6NTQ1NTI0OTE3LCJMb2dpblN0YXR1cyI6MiwiVHJpZ2VyVGltZSI6MTc3MzM0MzYyNCwiU2VjdXJpdHlJdGVtIjowLCJDdXJyZW50U3RlcCI6MCwia3ljRmFpbGVkVGhyZWVUaW1lcyI6MCwiVmVyaWZpZWRJdGVtcyI6IiIsIkxvZ2ljYXR0ciI6IiIsIlJpc2t0b2tlbiI6IjQyNzY1NDc4Mjk5OTkxMTk5NTM0NzAzMDAwMSNjYmMyNjIzOGQ5IiwiV2FzUHJlU2VsZlVuYmluZFRva2VuIjpmYWxzZSwiVmllcmZ5UmVzdWx0U2NlbmVDYWNoZWtleSI6IiIsIlJlcXVpcmVkU3RhZ3kiOiIiLCJSaXNrVG9rZW5UeXBlIjoiIiwiTmV3Q291bnRyeUNvZGUiOiIiLCJOZXdNb2JpbGUiOiIiLCJOZXdFbWFpbCI6IiIsInN1YiI6InNlbGZfdW5iaW5kIiwiZXhwIjoxNzczMzQ3MjI0LCJuYmYiOjE3NzMzNDM2MjR9.hi8vN3p1LNIuLzJiB2DA_PxfNuWrvpZ1_-O29GyhjPk; isLogin=1; secure-token=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo1NDU1MjQ5MTcsImIiOjAsInAiOjMsInVhIjoiIiwiZ2VuX3RzIjoxNzczMzQzNjg1LCJleHAiOjE3NzM2MDI4ODUsIm5zIjoiIiwiZXh0Ijp7IlN0YXRpb24tVHlwZSI6IiIsIm1jdCI6IjE3NzA1NDA3MjciLCJzaWQiOiJCWUJJVCJ9LCJkIjp0cnVlLCJzaWQiOiJCWUJJVCJ9.9iChXS375uf_OeMDpJz3wpJ65cGbbK8l9U6agiA2mt79iwopyb7jydiNHavZftboM99Of3MPQvgjnN-KjYEkeQ"
+    },
+    "sample_req_body": null,
+    "sample_resp_header": "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: https://www.bybitglobal.com\r\nAccess-Control-Expose-Headers: traceid,token,guid,txid,Content-Disposition,X-Signature\r\nAccess-Control-Allow-Credentials: true\r\nX-Refer-Site-Id: BYBIT\r\nRet_code: 0\r\nToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo1NDQ5OTU2MjMsImIiOjAsInAiOjMsInVhIjoiIiwiZ2VuX3RzIjoxNzczMzQzNjg2LCJleHAiOjE3NzM2MDI4ODYsIm5zIjoiIiwiZXh0Ijp7IlN0YXRpb24tVHlwZSI6IiIsIm1jdCI6IjE3NzAzMTkwN",
+    "sample_resp_body": "361\r\n<bin 865B>\r\n0\r\n\r\n"
+  },
+  "GET www.bybitglobal.com/en/login": {
+    "count": 87,
+    "sample_headers": {
+      "Host": "www.bybitglobal.com",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Google Chrome\";v=\"136\", \"Chromium\";v=\"136\", \"Not.A/Brand\";v=\"24\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "accept-language": "en-US,en",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "lang": "en-US",
+      "origin": "https://www.bybitglobal.com",
+      "referer": "https://www.bybitglobal.com/",
+      "platform": "pc",
+      "priority": "u=1, i",
+      "Cookie": "_by_l_g_d=60a03bf6-53aa-4b33-bacf-de5beb260e9d; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%20%2219ce3847ac91a-ced5bc9989e819-26011f51-2073600-19ce3847acacd%22%2C%20%22first_id%22%3A%20%22%22%2C%20%22props%22%3A%20%7B%7D%2C%20%22identities%22%3A%20%22eyIkaWRlbnRpdHlfY29va2llX2lkIjogIjE5Y2UzODQ3YWM5MWEtY2VkNWJjOTk4OWU4MTktMjYwMTFmNTEtMjA3MzYwMC0xOWNlMzg0N2FjYWNkIn0%3D%22%2C%20%22history_login_id%22%3A%20%7B%22name%22%3A%20%22%22%2C%20%22value%22%3A%20%22%22%7D%7D; deviceId=29b99fae-fa53-49fc-a666-637246ff1d9f; BYBIT_REG_REF_prod={\"lang\": \"en\", \"g\": \"60a03bf6-53aa-4b33-bacf-de5beb260e9d\", \"medium\": \"direct\", \"url\": \"www.google.com/\", \"last_refresh_time\": \"Thu, 12 Mar 2026 12:27:16 GMT\"}; sajssdk_2015_cross_new_user=1; _tt_enable_cookie=1"
+    },
+    "sample_req_body": null,
+    "sample_resp_header": "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: https://www.bybitglobal.com\r\nAccess-Control-Expose-Headers: traceid,token,guid,txid,Content-Disposition,X-Signature\r\nAccess-Control-Allow-Credentials: true\r\nX-Refer-Site-Id: BYBIT\r\nRet_code: 0\r\nTraceid: e67ff7d38ecc8ecf7f1e4b31b28e337d\r\nTimenow: 1773343641795\r\nSet-Cookie: self-unbind-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJNZW1iZXJJRCI6NTQ1MTM5MjUxLCJMb2dpblN0YXR1cyI6MiwiVHJpZ2VyVGltZSI6MTc3MzM0MzY",
+    "sample_resp_body": "1c5\r\n<bin 453B>\r\n0\r\n\r\n"
+  },
+  "GET api2.bybitglobal.com/register/permission_v2": {
+    "count": 59,
+    "sample_headers": {
+      "Host": "api2.bybitglobal.com",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Google Chrome\";v=\"134\", \"Chromium\";v=\"134\", \"Not.A/Brand\";v=\"24\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "accept-language": "en-US,en",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "lang": "en-US",
+      "origin": "https://www.bybitglobal.com",
+      "referer": "https://www.bybitglobal.com/",
+      "platform": "pc",
+      "priority": "u=1, i",
+      "traceparent": "00-2659a0ec012bbeb4eb9ab6ea9faaa8a8-f84aae1ceef42dad-01",
+      "guid": "3dff1b07-fed4-4b2c-99b4-e2a554314006",
+      "Cookie": "_by_l_g_d=3dff1b07-fed4-4b2c-99b4-e2a554314006; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%20%2219ce384b35171-b1f711b68187a4-26011d51-2073600-19ce384b35297%22%2C%20%22first_id%22%3A%20%22%22%2C%20%22props%22%3A%20%7B%7D%2C%20%22identities%22%3A%20%22eyIkaWRlbnRpdHlfY29va2llX2lkIjogIjE5Y2UzODRiMzUxNzEtYjFmNzExYjY4MTg3YTQtMjYwMTFkNTEtMjA3MzYwMC0xOWNlMzg0YjM1Mjk3In0%3D%22%2C%20%22history_login_id%22%3A%20%7B%22name%22%3A%20%22%22%2C%20%22value%22%3A%20%22%22%7D%7D; deviceId=97dd5f94-589c-47ff-a1cb-a1308ff84454; BYBIT_REG_REF_prod={\"lang\": \"en\", \"g\": \"3dff1b07-fed4-4b2c-99b4-e2a554314006\", \"medium\": \"direct\", \"url\": \"www.google.com/\", \"last_refresh_time\": \"Thu, 12 Mar 2026 12:27:30 GMT\"}; sajssdk_2015_cross_new_user=1; _tt_enable_cookie=1; EO-Bot-Session=8Db7K3MNPrxaldvigAIYu28Fum7QNVp7jMzj3jA0JEzhRTen5Pw0qkpY8luSr4Hn; EO-Bot-SessionId=10777230126147682841; EO-Bot-Token=; self-unbind-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJNZW1iZXJJRCI6NTQ1NzM1OTA5LCJMb2dpblN0YXR1cyI6MiwiVHJpZ2VyVGltZSI6MTc3MzM0MzY2MCwiU2VjdXJpdHlJdGVtIjowLCJDdXJyZW50U3RlcCI6MCwia3ljRmFpbGVkVGhyZWVUaW1lcyI6MCwiVmVyaWZpZWRJdGVtcyI6IiIsIkxvZ2ljYXR0ciI6IiIsIlJpc2t0b2tlbiI6IjAxODI1NDgzNTU2NDIxNjM5MjExNzAzMDAwMSNkYmRkZmZiNDQwIiwiV2FzUHJlU2VsZlVuYmluZFRva2VuIjpmYWxzZSwiVmllcmZ5UmVzdWx0U2NlbmVDYWNoZWtleSI6IiIsIlJlcXVpcmVkU3RhZ3kiOiIiLCJSaXNrVG9rZW5UeXBlIjoiIiwiTmV3Q291bnRyeUNvZGUiOiIiLCJOZXdNb2JpbGUiOiIiLCJOZXdFbWFpbCI6IiIsInN1YiI6InNlbGZfdW5iaW5kIiwiZXhwIjoxNzczMzQ3MjYwLCJuYmYiOjE3NzMzNDM2NjB9.BT30wLpkKVJFEn7IflnpfLwlzH7_RPnUM_Sd92KZM7o"
+    },
+    "sample_req_body": null,
+    "sample_resp_header": "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: https://www.bybitglobal.com\r\nAccess-Control-Expose-Headers: traceid,token,guid,txid,Content-Disposition,X-Signature\r\nAccess-Control-Allow-Credentials: true\r\nRet_code: 0\r\nTraceid: 2659a0ec012bbeb4eb9ab6ea9faaa8a8\r\nTimenow: 1773343660838\r\nServer: Openresty\r\nx-cld-src: Loc-A\r\nAccess-Control-Allow-Methods: PUT,GET,POST,OPTIONS,DELETE,PATCH,HEAD\r\nAccess-Control-Max-Age: 259200\r\nCache-Control: no-store\r\nConten",
+    "sample_resp_body": {
+      "ret_code": 0,
+      "ret_msg": "success",
+      "result": {
+        "code": "DZ",
+        "name_en": "Algeria",
+        "is_visible": 1,
+        "is_login": 1,
+        "is_trade": 1,
+        "ip": "41.101.229.104",
+        "ban_time": "2026-03-12 19:27:40",
+        "is_sanction_ip_disallow": 0,
+        "refer_site_id": "BYBIT",
+        "group_country": ""
+      },
+      "ext_code": "",
+      "ext_info": null,
+      "time_now": "1773343660.838857"
+    }
+  },
+  "GET api2.bybitglobal.com/v2/private/user/profile": {
+    "count": 57,
+    "sample_headers": {
+      "Host": "api2.bybitglobal.com",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Google Chrome\";v=\"134\", \"Chromium\";v=\"134\", \"Not.A/Brand\";v=\"24\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "accept-language": "en-US,en",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "lang": "en-US",
+      "origin": "https://www.bybitglobal.com",
+      "referer": "https://www.bybitglobal.com/",
+      "platform": "pc",
+      "priority": "u=1, i",
+      "traceparent": "00-89ee614d5f4babafa244ade86ad6a939-1911bbe0de94aedd-01",
+      "guid": "60b58b80-bab2-43ca-855e-48b48b1e687f",
+      "Cookie": "_by_l_g_d=60b58b80-bab2-43ca-855e-48b48b1e687f; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%20%2219ce38449135d-dc4d62feea4b91-26011d51-2073600-19ce3844914b1%22%2C%20%22first_id%22%3A%20%22%22%2C%20%22props%22%3A%20%7B%7D%2C%20%22identities%22%3A%20%22eyIkaWRlbnRpdHlfY29va2llX2lkIjogIjE5Y2UzODQ0OTEzNWQtZGM0ZDYyZmVlYTRiOTEtMjYwMTFkNTEtMjA3MzYwMC0xOWNlMzg0NDkxNGIxIn0%3D%22%2C%20%22history_login_id%22%3A%20%7B%22name%22%3A%20%22%22%2C%20%22value%22%3A%20%22%22%7D%7D; deviceId=6b69d507-5b43-48a7-a5a4-21ca65e5d306; BYBIT_REG_REF_prod={\"lang\": \"en\", \"g\": \"60b58b80-bab2-43ca-855e-48b48b1e687f\", \"medium\": \"direct\", \"url\": \"www.google.com/\", \"last_refresh_time\": \"Thu, 12 Mar 2026 12:27:03 GMT\"}; sajssdk_2015_cross_new_user=1; _tt_enable_cookie=1; EO-Bot-Session=N3na7JQkY_969FF2qUTnWce5szKF4K8x5cH-JQ3JAFLmQuHHjvrBALsUYnfmwcgd; EO-Bot-SessionId=877473720254881203; EO-Bot-Token=; self-unbind-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJNZW1iZXJJRCI6NTQ1NTI0OTE3LCJMb2dpblN0YXR1cyI6MiwiVHJpZ2VyVGltZSI6MTc3MzM0MzYyNCwiU2VjdXJpdHlJdGVtIjowLCJDdXJyZW50U3RlcCI6MCwia3ljRmFpbGVkVGhyZWVUaW1lcyI6MCwiVmVyaWZpZWRJdGVtcyI6IiIsIkxvZ2ljYXR0ciI6IiIsIlJpc2t0b2tlbiI6IjQyNzY1NDc4Mjk5OTkxMTk5NTM0NzAzMDAwMSNjYmMyNjIzOGQ5IiwiV2FzUHJlU2VsZlVuYmluZFRva2VuIjpmYWxzZSwiVmllcmZ5UmVzdWx0U2NlbmVDYWNoZWtleSI6IiIsIlJlcXVpcmVkU3RhZ3kiOiIiLCJSaXNrVG9rZW5UeXBlIjoiIiwiTmV3Q291bnRyeUNvZGUiOiIiLCJOZXdNb2JpbGUiOiIiLCJOZXdFbWFpbCI6IiIsInN1YiI6InNlbGZfdW5iaW5kIiwiZXhwIjoxNzczMzQ3MjI0LCJuYmYiOjE3NzMzNDM2MjR9.hi8vN3p1LNIuLzJiB2DA_PxfNuWrvpZ1_-O29GyhjPk; isLogin=1; secure-token=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo1NDU1MjQ5MTcsImIiOjAsInAiOjMsInVhIjoiIiwiZ2VuX3RzIjoxNzczMzQzNjg1LCJleHAiOjE3NzM2MDI4ODUsIm5zIjoiIiwiZXh0Ijp7IlN0YXRpb24tVHlwZSI6IiIsIm1jdCI6IjE3NzA1NDA3MjciLCJzaWQiOiJCWUJJVCJ9LCJkIjp0cnVlLCJzaWQiOiJCWUJJVCJ9.9iChXS375uf_OeMDpJz3wpJ65cGbbK8l9U6agiA2mt79iwopyb7jydiNHavZftboM99Of3MPQvgjnN-KjYEkeQ"
+    },
+    "sample_req_body": null,
+    "sample_resp_header": "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: https://www.bybitglobal.com\r\nAccess-Control-Expose-Headers: traceid,token,guid,txid,Content-Disposition,X-Signature\r\nAccess-Control-Allow-Credentials: true\r\nRet_code: 0\r\nTraceid: 89ee614d5f4babafa244ade86ad6a939\r\nTimenow: 1773343685429\r\nSet-Cookie: isLogin=1; expires=Mon, 11 May 2026 19:28:05 GMT; domain=.bybitglobal.com; path=/; secure; SameSite=Lax\r\nServer: Openresty\r\nx-cld-src: Loc-A\r\nAccess-Control-A",
+    "sample_resp_body": "4c2\r\n<bin 1218B>\r\n0\r\n\r\n"
+  },
+  "GET api2.bybitglobal.com/spot/api/activity/v1/project/system/date": {
+    "count": 34,
+    "sample_headers": {
+      "Host": "api2.bybitglobal.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Google Chrome\";v=\"135\", \"Chromium\";v=\"135\", \"Not.A/Brand\";v=\"24\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"macOS\"",
+      "accept-language": "en-US,en",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "lang": "en-US",
+      "origin": "https://www.bybitglobal.com",
+      "referer": "https://www.bybitglobal.com/",
+      "platform": "pc",
+      "priority": "u=1, i",
+      "traceparent": "00-239edc0c58c15d4edb9e448cfd72efdd-ffb14b21f4e4f119-01",
+      "guid": "c1e04388-7fb6-48e7-8ffe-3743bdb404f6",
+      "Cookie": "_by_l_g_d=c1e04388-7fb6-48e7-8ffe-3743bdb404f6; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%20%2219ce3848451d-159781d772e162-1a525636-2073600-19ce3848452ec%22%2C%20%22first_id%22%3A%20%22%22%2C%20%22props%22%3A%20%7B%7D%2C%20%22identities%22%3A%20%22eyIkaWRlbnRpdHlfY29va2llX2lkIjogIjE5Y2UzODQ4NDUxZC0xNTk3ODFkNzcyZTE2Mi0xYTUyNTYzNi0yMDczNjAwLTE5Y2UzODQ4NDUyZWMifQ%3D%3D%22%2C%20%22history_login_id%22%3A%20%7B%22name%22%3A%20%22%22%2C%20%22value%22%3A%20%22%22%7D%7D; deviceId=90e5676f-58ab-4ff3-b3dc-f2998e37cbed; BYBIT_REG_REF_prod={\"lang\": \"en\", \"g\": \"c1e04388-7fb6-48e7-8ffe-3743bdb404f6\", \"medium\": \"direct\", \"url\": \"www.google.com/\", \"last_refresh_time\": \"Thu, 12 Mar 2026 12:27:18 GMT\"}; sajssdk_2015_cross_new_user=1; _tt_enable_cookie=1; EO-Bot-Session=bIRpWm9Uglx67fxROzmjkG0z-rZoSmI3ATD9yJjWn8Ls8kmoQmHzGe8PPA6sBj-w; EO-Bot-SessionId=10841406420836513173; EO-Bot-Token=; self-unbind-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJNZW1iZXJJRCI6NTQ1MTM5MjUxLCJMb2dpblN0YXR1cyI6MiwiVHJpZ2VyVGltZSI6MTc3MzM0MzY0MSwiU2VjdXJpdHlJdGVtIjowLCJDdXJyZW50U3RlcCI6MCwia3ljRmFpbGVkVGhyZWVUaW1lcyI6MCwiVmVyaWZpZWRJdGVtcyI6IiIsIkxvZ2ljYXR0ciI6IiIsIlJpc2t0b2tlbiI6IjE3Njc1NDMwMDA5NTcxMjM1NjQyNzAzMDAwMSMyZjU4OGI4NzM4IiwiV2FzUHJlU2VsZlVuYmluZFRva2VuIjpmYWxzZSwiVmllcmZ5UmVzdWx0U2NlbmVDYWNoZWtleSI6IiIsIlJlcXVpcmVkU3RhZ3kiOiIiLCJSaXNrVG9rZW5UeXBlIjoiIiwiTmV3Q291bnRyeUNvZGUiOiIiLCJOZXdNb2JpbGUiOiIiLCJOZXdFbWFpbCI6IiIsInN1YiI6InNlbGZfdW5iaW5kIiwiZXhwIjoxNzczMzQ3MjQxLCJuYmYiOjE3NzMzNDM2NDF9.2P7H-pyCIIsYMzY4q7w14JDgWf3SrrgmHFwEtYo1ejU"
+    },
+    "sample_req_body": null,
+    "sample_resp_header": "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: https://www.bybitglobal.com\r\nAccess-Control-Expose-Headers: traceid,token,guid,txid,Content-Disposition,X-Signature\r\nAccess-Control-Allow-Credentials: true\r\nX-Refer-Site-Id: BYBIT\r\nRet_code: 0\r\nTraceid: 5c1e2bb2dcbb2c9ead0c5ba4f463e7ab\r\nTimenow: 1773343642821\r\nSet-Cookie: self-unbind-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJNZW1iZXJJRCI6NTQ1NzQ3MTAyLCJMb2dpblN0YXR1cyI6MiwiVHJpZ2VyVGltZSI6MTc3MzM0MzY",
+    "sample_resp_body": "1c5\r\n<bin 453B>\r\n0\r\n\r\n"
+  },
+  "GET api.bybitglobal.com/v5/market/orderbook": {
+    "count": 33,
+    "sample_headers": {
+      "Host": "api.bybitglobal.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Google Chrome\";v=\"135\", \"Chromium\";v=\"135\", \"Not.A/Brand\";v=\"24\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"macOS\"",
+      "accept-language": "en-US,en",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "lang": "en-US",
+      "origin": "https://www.bybitglobal.com",
+      "referer": "https://www.bybitglobal.com/",
+      "platform": "pc",
+      "priority": "u=1, i",
+      "traceparent": "00-debcf02994cc08ddf29cf41d5cb8ebdb-e72bd876fadc2c8f-01",
+      "guid": "78e75e7a-a59f-4c9b-9600-7a9f1c4ebaaa",
+      "Cookie": "_by_l_g_d=78e75e7a-a59f-4c9b-9600-7a9f1c4ebaaa; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%20%2219ce3844bd25f-6067ee1fcf1bb9-1a525636-2073600-19ce3844bd3e7%22%2C%20%22first_id%22%3A%20%22%22%2C%20%22props%22%3A%20%7B%7D%2C%20%22identities%22%3A%20%22eyIkaWRlbnRpdHlfY29va2llX2lkIjogIjE5Y2UzODQ0YmQyNWYtNjA2N2VlMWZjZjFiYjktMWE1MjU2MzYtMjA3MzYwMC0xOWNlMzg0NGJkM2U3In0%3D%22%2C%20%22history_login_id%22%3A%20%7B%22name%22%3A%20%22%22%2C%20%22value%22%3A%20%22%22%7D%7D; deviceId=aba76039-4504-4539-a7d0-6cb009e8fd74; BYBIT_REG_REF_prod={\"lang\": \"en\", \"g\": \"78e75e7a-a59f-4c9b-9600-7a9f1c4ebaaa\", \"medium\": \"direct\", \"url\": \"www.google.com/\", \"last_refresh_time\": \"Thu, 12 Mar 2026 12:27:04 GMT\"}; sajssdk_2015_cross_new_user=1; _tt_enable_cookie=1; EO-Bot-Session=5AEWjJQbnGpsHzsWPkTE2CvIkvbnCBTd57jlC8uNnZoLGdpFOrc6IlfDCdG3oRKT; EO-Bot-SessionId=2851457731926786987; EO-Bot-Token=; self-unbind-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJNZW1iZXJJRCI6NTQ1NTIxMjkzLCJMb2dpblN0YXR1cyI6MiwiVHJpZ2VyVGltZSI6MTc3MzM0MzYyNSwiU2VjdXJpdHlJdGVtIjowLCJDdXJyZW50U3RlcCI6MCwia3ljRmFpbGVkVGhyZWVUaW1lcyI6MCwiVmVyaWZpZWRJdGVtcyI6IiIsIkxvZ2ljYXR0ciI6IiIsIlJpc2t0b2tlbiI6IjU1OTg1NDc1NTUxNDcxMTQ2OTMwNzAzMDAwMSNhNmMyNTg2NmRhIiwiV2FzUHJlU2VsZlVuYmluZFRva2VuIjpmYWxzZSwiVmllcmZ5UmVzdWx0U2NlbmVDYWNoZWtleSI6IiIsIlJlcXVpcmVkU3RhZ3kiOiIiLCJSaXNrVG9rZW5UeXBlIjoiIiwiTmV3Q291bnRyeUNvZGUiOiIiLCJOZXdNb2JpbGUiOiIiLCJOZXdFbWFpbCI6IiIsInN1YiI6InNlbGZfdW5iaW5kIiwiZXhwIjoxNzczMzQ3MjI1LCJuYmYiOjE3NzMzNDM2MjV9.GG7EyjYJrhW0K7pO7q8QmafAMAHkZFEYwTfo-WSYLQI; isLogin=1; secure-token=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo1NDU1MjEyOTMsImIiOjAsInAiOjMsInVhIjoiIiwiZ2VuX3RzIjoxNzczMzQzNjg2LCJleHAiOjE3NzM2MDI4ODYsIm5zIjoiIiwiZXh0Ijp7IlN0YXRpb24tVHlwZSI6IiIsIm1jdCI6IjE3NzA1MzkyOTUiLCJzaWQiOiJCWUJJVCJ9LCJkIjp0cnVlLCJzaWQiOiJCWUJJVCJ9.q-xqdMVwHigfxKWNpLceKa5ynPeuCtNrFpQ_TlfJLpyt6imTKUU3LN3mLjaSInzWMTGO8vR7cwD3wN7K8ESYaA"
+    },
+    "sample_req_body": null,
+    "sample_resp_header": "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: https://www.bybitglobal.com\r\nAccess-Control-Expose-Headers: traceid,token,guid,txid,Content-Disposition,X-Signature\r\nAccess-Control-Allow-Credentials: true\r\nX-Refer-Site-Id: BYBIT\r\nRet_code: 0\r\nTraceid: 3598f83debeba25fe27abfd9378e3ff0\r\nTimenow: 1773343689442\r\nSet-Cookie: self-unbind-token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJNZW1iZXJJRCI6NTQ1MTYyNzAwLCJMb2dpblN0YXR1cyI6MiwiVHJpZ2VyVGltZSI6MTc3MzM0MzY",
+    "sample_resp_body": "1c5\r\n<bin 453B>\r\n0\r\n\r\n"
+  },
+  "POST api2.bybitglobal.com/user/magpice/v1/captcha/order": {
+    "count": 5,
+    "sample_headers": {
+      "Host": "api2.bybitglobal.com",
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Google Chrome\";v=\"136\", \"Chromium\";v=\"136\", \"Not.A/Brand\";v=\"24\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"macOS\"",
+      "accept-language": "en-US,en",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "lang": "en-US",
+      "origin": "https://www.bybitglobal.com",
+      "referer": "https://www.bybitglobal.com/",
+      "platform": "pc",
+      "priority": "u=1, i",
+      "traceparent": "00-2fb16ac23fe46cfcbee202cfe5e6c9c1-ba10ceb7d0c8cbec-01",
+      "guid": "3417fe6f-2883-4b1f-a389-3db6b3dadefa",
+      "Content-Type": "application/json",
+      "Cookie": "_by_l_g_d=1a6212e0-2d90-4222-bd4c-2561cf32440f; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%20%2219ccacbafc029-dfd96991c98ce0-19525636-2073600-19ccacbafc1bc%22%2C%20%22first_id%22%3A%20%22%22%2C%20%22props%22%3A%20%7B%7D%2C%20%22identities%22%3A%20%22eyIkaWRlbnRpdHlfY29va2llX2lkIjogIjE5Y2NhY2JhZmMwMjktZGZkOTY5OTFjOThjZTAtMTk1MjU2MzYtMjA3MzYwMC0xOWNjYWNiYWZjMWJjIn0%3D%22%2C%20%22history_login_id%22%3A%20%7B%22name%22%3A%20%22%22%2C%20%22value%22%3A%20%22%22%7D%7D; deviceId=2d830787-b68a-464a-aa52-b958aa34cd76; sajssdk_2015_cross_new_user=1; _tt_enable_cookie=1; isLogin=1; BYBIT_REG_REF_prod={\"lang\": \"en\", \"g\": \"3417fe6f-2883-4b1f-a389-3db6b3dadefa\", \"medium\": \"direct\", \"url\": \"www.google.com/\", \"last_refresh_time\": \"Thu, 12 Mar 2026 12:28:12 GMT\"}",
+      "Content-Length": "100"
+    },
+    "sample_req_body": null,
+    "sample_resp_header": "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: https://www.bybitglobal.com\r\nAccess-Control-Expose-Headers: traceid,token,guid,txid,Content-Disposition,X-Signature\r\nAccess-Control-Allow-Credentials: true\r\nX-Refer-Site-Id: BYBIT\r\nRet_code: 0\r\nToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo1NDU3MzMxOTIsImIiOjAsInAiOjMsInVhIjoiIiwiZ2VuX3RzIjoxNzczMzQzNjk1LCJleHAiOjE3NzM2MDI4OTUsIm5zIjoiIiwiZXh0Ijp7IlN0YXRpb24tVHlwZSI6IiIsIm1jdCI6IjE3NzA2MzE0N",
+    "sample_resp_body": "361\r\n<bin 865B>\r\n0\r\n\r\n"
+  },
+  "POST api.capmonster.cloud/createTask": {
+    "count": 3,
+    "sample_headers": {
+      "Host": "api.capmonster.cloud",
+      "User-Agent": "python-anycaptcha",
+      "Content-Length": "405",
+      "Content-Type": "application/json"
+    },
+    "sample_req_body": null,
+    "sample_resp_header": "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: https://www.bybitglobal.com\r\nAccess-Control-Expose-Headers: traceid,token,guid,txid,Content-Disposition,X-Signature\r\nAccess-Control-Allow-Credentials: true\r\nRet_code: 0\r\nTraceid: f9cd120df4ea4bbc58a62f00bb872fb1\r\nTimenow: 1773343698204\r\nSet-Cookie: isLogin=1; expires=Mon, 11 May 2026 19:28:18 GMT; domain=.bybitglobal.com; path=/; secure; SameSite=Lax\r\nServer: Openresty\r\nx-cld-src: Loc-A\r\nAccess-Control-A",
+    "sample_resp_body": "d0d\r\n<bin 3341B>\r\n22f3\r\n"
+  },
+  "POST api2.bybitglobal.com/login": {
+    "count": 2,
+    "sample_headers": {
+      "Host": "api2.bybitglobal.com",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+      "sec-ch-ua": "\"Google Chrome\";v=\"135\", \"Chromium\";v=\"135\", \"Not.A/Brand\";v=\"24\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "accept-language": "en-US,en",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+      "lang": "en-US",
+      "origin": "https://www.bybitglobal.com",
+      "referer": "https://www.bybitglobal.com/",
+      "platform": "pc",
+      "priority": "u=1, i",
+      "traceparent": "00-d70c1ac44503aca49fad5ede46f7c25f-db96c48fad3fafaa-01",
+      "guid": "949e2a48-1d27-4a51-ab51-3df5c6fe320f",
+      "Content-Type": "application/json",
+      "Cookie": "_by_l_g_d=949e2a48-1d27-4a51-ab51-3df5c6fe320f; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%20%2219ce38612bf22-c507f8acb0a476-26011c51-2073600-19ce38612c0df%22%2C%20%22first_id%22%3A%20%22%22%2C%20%22props%22%3A%20%7B%7D%2C%20%22identities%22%3A%20%22eyIkaWRlbnRpdHlfY29va2llX2lkIjogIjE5Y2UzODYxMmJmMjItYzUwN2Y4YWNiMGE0NzYtMjYwMTFjNTEtMjA3MzYwMC0xOWNlMzg2MTJjMGRmIn0%3D%22%2C%20%22history_login_id%22%3A%20%7B%22name%22%3A%20%22%22%2C%20%22value%22%3A%20%22%22%7D%7D; deviceId=9b4b408b-0212-4f33-9e1f-08926b892613; BYBIT_REG_REF_prod={\"lang\": \"en\", \"g\": \"949e2a48-1d27-4a51-ab51-3df5c6fe320f\", \"medium\": \"direct\", \"url\": \"www.google.com/\", \"last_refresh_time\": \"Thu, 12 Mar 2026 12:29:00 GMT\"}; sajssdk_2015_cross_new_user=1; _tt_enable_cookie=1; EO-Bot-Session=TqUc3DSdfwqtwMfZ4KarKYIW25REEQ5FEazXRLn66z6vaOVlJ3DvOis9zHIgPRJA; EO-Bot-SessionId=7223890020157739096; EO-Bot-Token=",
+      "Content-Length": "594"
+    },
+    "sample_req_body": null,
+    "sample_resp_header": "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: https://www.bybitglobal.com\r\nAccess-Control-Expose-Headers: traceid,token,guid,txid,Content-Disposition,X-Signature\r\nAccess-Control-Allow-Credentials: true\r\nRet_code: 0\r\nTraceid: a83edc8cbaeeac5fe0cd81c3cdacccdd\r\nTimenow: 1773343741283\r\nServer: Openresty\r\nx-cld-src: Loc-A\r\nAccess-Control-Allow-Methods: PUT,GET,POST,OPTIONS,DELETE,PATCH,HEAD\r\nAccess-Control-Max-Age: 259200\r\nCache-Control: no-store\r\nConten",
+    "sample_resp_body": null
+  },
+  "POST api.capmonster.cloud/getTaskResult": {
+    "count": 1,
+    "sample_headers": {
+      "Host": "api.capmonster.cloud",
+      "User-Agent": "python-anycaptcha",
+      "Content-Length": "70",
+      "Content-Type": "application/json"
+    },
+    "sample_req_body": null,
+    "sample_resp_header": "HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nAccess-Control-Allow-Origin: https://www.bybitglobal.com\r\nAccess-Control-Expose-Headers: traceid,token,guid,txid,Content-Disposition,X-Signature\r\nAccess-Control-Allow-Credentials: true\r\nRet_code: 0\r\nTraceid: da1d14bcf4accf7b38c099829fa7edb0\r\nTimenow: 1773343815901\r\nServer: Openresty\r\nx-cld-src: Loc-A\r\nAccess-Control-Allow-Methods: PUT,GET,POST,OPTIONS,DELETE,PATCH,HEAD\r\nAccess-Control-Max-Age: 259200\r\nCache-Control: no-store\r\nConten",
+    "sample_resp_body": {
+      "ret_code": 0,
+      "ret_msg": "success",
+      "result": {
+        "risk_token": "537954723293516231217030001#d8be3f62f1",
+        "component_type": 2,
+        "component_list": [
+          {
+            "component_id": "google2fa",
+            "component_extension": "",
+            "disposal": "",
+            "disposal_extension": ""
+          }
+        ],
+        "logc_ext": {
+          "required": [
+            "google2fa"
+          ],
+          "option": []
+        }
+      },
+      "ext_code": "",
+      "ext_info": null,
+      "time_now": "1773343815.901628"
+    }
+  }
+}

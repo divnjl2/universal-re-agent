@@ -6,11 +6,9 @@ Migration: 2025_03_17 — 4840d1739004
 Trigger: trigger_delete_zero_balance — removes zero-balance tokens on INSERT/UPDATE
 """
 
-from __future__ import annotations
-
 from typing import Optional
 
-from sqlalchemy import Column, Float, ForeignKey, Integer, String
+from sqlalchemy import Column, Float, ForeignKeyConstraint, Integer, String
 from sqlalchemy.orm import relationship
 
 from .base import Base
@@ -20,12 +18,14 @@ class Web3Token(Base):
     """Individual token balance within a wallet/chain."""
 
     __tablename__ = "web3_token"
-
-    wallet_id: str = Column(
-        String,
-        ForeignKey("web3_wallet.id"),
-        primary_key=True,
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["wallet_id", "chain_id"],
+            ["web3_chain.wallet_id", "web3_chain.chain_id"],
+        ),
     )
+
+    wallet_id: str = Column(String, primary_key=True)
     chain_id: int = Column(Integer, primary_key=True)
     contract_address: str = Column(String, primary_key=True)
     symbol: Optional[str] = Column(String, nullable=True)

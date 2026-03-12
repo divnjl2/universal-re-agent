@@ -5,8 +5,6 @@ Table: deposit_history (PK: id + uid)
 Migration: 2024_12_30 — 3fa64bff2385
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String

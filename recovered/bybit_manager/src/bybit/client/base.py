@@ -28,6 +28,8 @@ BASE_URL = "https://api2.bybitglobal.com"
 
 API_DOMAINS: Dict[str, str] = {
     "global": "api2.bybitglobal.com",
+    "public": "api.bybitglobal.com",
+    "www": "www.bybitglobal.com",
     "com": "api2.bybit.com",
     "eu": "api2.bybit.eu",
     "kz": "api2.bybit.kz",
@@ -35,6 +37,23 @@ API_DOMAINS: Dict[str, str] = {
     "georgia": "api2.bybitgeorgia.ge",
     "id": "api2.bybit-global.com",
 }
+
+RECAPTCHA_SITE_KEY = "6LcJqb0pAAAAAEJCmRWqNFtGGMG7Gr20S-F1TTq6"
+
+COOKIE_NAMES = [
+    "_by_l_g_d",
+    "sensorsdata2015jssdkcross",
+    "deviceId",
+    "BYBIT_REG_REF_prod",
+    "EO-Bot-Session",
+    "EO-Bot-SessionId",
+    "EO-Bot-Token",
+    "self-unbind-token",
+    "secure-token",
+    "isLogin",
+    "sajssdk_2015_cross_new_user",
+    "_tt_enable_cookie",
+]
 
 # Multi-locale login URLs (22 locales recovered from memory)
 LOGIN_LOCALES: Dict[str, str] = {
@@ -173,7 +192,7 @@ class BybitDevice:
     def __init__(
         self,
         device_id: Optional[str] = None,
-        chrome_major_version: int = 120,
+        chrome_major_version: int = 135,
         os: str = "Windows",
         screen_width: int = 1920,
         screen_height: int = 1080,
@@ -194,8 +213,9 @@ class BybitDevice:
     @property
     def sec_ch_ua(self) -> str:
         return (
-            f'"Not_A Brand";v="8", "Chromium";v="{self.chrome_major_version}", '
-            f'"Google Chrome";v="{self.chrome_major_version}"'
+            f'"Chromium";v="{self.chrome_major_version}", '
+            f'"Google Chrome";v="{self.chrome_major_version}", '
+            f'"Not-A.Brand";v="99"'
         )
 
 
@@ -258,19 +278,29 @@ class BaseClient:
     def _build_default_headers(self) -> Dict[str, str]:
         """Build browser-like request headers."""
         return {
-            "accept": "application/json",
+            "accept": "*/*",
             "accept-language": "en-US,en;q=0.9",
             "content-type": "application/json",
-            "origin": f"https://{LOGIN_LOCALES.get(self.locale, 'www.bybitglobal.com')}",
-            "referer": f"https://{LOGIN_LOCALES.get(self.locale, 'www.bybitglobal.com')}/",
+            "platform": "pc",
+            "lang": "en-US",
+            "origin": "https://www.bybitglobal.com",
+            "referer": "https://www.bybitglobal.com/",
             "sec-ch-ua": self.device.sec_ch_ua,
             "sec-ch-ua-mobile": "?0",
             "sec-ch-ua-platform": f'"{self.device.os}"',
             "sec-fetch-dest": "empty",
             "sec-fetch-mode": "cors",
             "sec-fetch-site": "same-site",
+            "priority": "u=1, i",
             "user-agent": self.device.user_agent,
         }
+
+    @staticmethod
+    def _generate_traceparent() -> str:
+        """Generate W3C traceparent header: 00-{trace_id}-{parent_id}-{flags}."""
+        trace_id = hashlib.md5(uuid.uuid4().bytes).hexdigest()
+        parent_id = hashlib.md5(uuid.uuid4().bytes).hexdigest()[:16]
+        return f"00-{trace_id}-{parent_id}-00"
 
     def _load_cookies(self, cookies: List[Dict[str, Any]]) -> None:
         """Load cookies from Bybit cookie list format into session."""
@@ -335,8 +365,7 @@ class BaseClient:
 
         extra_headers = dict(headers or {})
         extra_headers["guid"] = self.guid
-        extra_headers["platform"] = "pc"
-        extra_headers["lang"] = self.locale
+        extra_headers["traceparent"] = self._generate_traceparent()
 
         request_kwargs: Dict[str, Any] = {
             "headers": extra_headers,

@@ -5,8 +5,6 @@ This is the ROOT entity. All other tables FK to bybit_account.uid.
 Schema matches migration 2024_12_27_2000-9f17e744cf77_v3.py + subsequent migrations.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -30,6 +28,7 @@ class BybitAccount(Base):
     # Identity
     database_id = Column(Integer, primary_key=True)
     uid = Column(Integer, unique=True, nullable=True)
+    member_id = Column(String, nullable=True)
     email_address = Column(String(254), ForeignKey("email.address"), nullable=False)
 
     # Group, Name, Note
@@ -75,6 +74,7 @@ class BybitAccount(Base):
     country = Column(String, nullable=True)
 
     # Financial
+    total_balance_btc = Column(Float, nullable=True)
     balance_usd = Column(Float, server_default="0", nullable=False)
     profit = Column(Float, server_default="0", nullable=False)
 
@@ -87,6 +87,9 @@ class BybitAccount(Base):
 
     # Proxy
     proxy = Column(String, nullable=True)
+    proxy_provider = Column(String, nullable=True)
+    proxy_country = Column(String(2), nullable=True)
+    proxy_session_id = Column(String, nullable=True)
     proxy_error = Column(Boolean, server_default="FALSE", nullable=False)
     proxy_county_restricted = Column(Boolean, server_default="FALSE", nullable=False)
     proxy_payment_required = Column(Boolean, server_default="FALSE", nullable=False)
@@ -95,11 +98,14 @@ class BybitAccount(Base):
     aai_proxy = Column(String, nullable=True)
 
     # Device / Login
+    guid = Column(String(36), nullable=True)
+    device_id = Column(String(36), nullable=True)
     preferred_country_code = Column(String(2), nullable=True)
     last_login_country_code = Column(String(2), nullable=True)
     last_login_ip = Column(String, nullable=True)
     chrome_major_version = Column(Integer, nullable=True)
     os = Column(String, nullable=True)
+    platform = Column(String, nullable=True)
     screen_width = Column(Integer, nullable=True)
     screen_height = Column(Integer, nullable=True)
     last_tencent_request_time = Column(DateTime, nullable=True)

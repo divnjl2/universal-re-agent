@@ -5,8 +5,6 @@ Table: finance_account (PK: uid + type)
 Migration: 2025_02_02 — 8eca72c96c47
 """
 
-from __future__ import annotations
-
 import enum
 from typing import Optional
 

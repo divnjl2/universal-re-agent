@@ -41,3 +41,23 @@ class AccountType(BybitEnum):
 class WithdrawType(BybitEnum):
     ON_CHAIN = "0"
     INTERNAL = "2"
+
+
+class CaptchaType(BybitEnum):
+    RECAPTCHA = "recaptcha"
+    GEETEST = "geetest"
+    GEETEST_V4 = "geetest_v4"
+    TENCENT = "tencent"
+
+
+class RiskComponentType(BybitEnum):
+    GOOGLE2FA = "google2fa"
+    EMAIL = "email"
+    SMS = "sms"
+    CAPTCHA = "captcha"
+
+
+class ProxyProvider(BybitEnum):
+    IPROYAL = "iproyal"
+    DATAIMPULSE = "dataimpulse"
+    NODEMAVEN = "nodemaven"

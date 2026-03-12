@@ -5,8 +5,6 @@ Table: web3_chain (PK: wallet_id + chain_id)
 Migration: 2025_03_17 — 4840d1739004
 """
 
-from __future__ import annotations
-
 import enum
 from typing import List, Optional
 

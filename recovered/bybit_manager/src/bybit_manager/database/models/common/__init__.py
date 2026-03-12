@@ -1,5 +1,7 @@
 """
-RECOVERED: bybit_manager.database.models.common
+Common utilities for database models.
+
+Sub-modules:
+- better_proxy: Proxy parsing/formatting helpers
+- logger: Database operation logging helpers
 """
-# from .better_proxy import ...
-# from .logger import ...

@@ -84,21 +84,70 @@ class ManagedClient:
 
     def _create_client(self) -> PrivateClient:
         """Create a new PrivateClient instance with all config."""
-        # Get captcha services from config
-        captcha_services = self.config.captcha_services
+        # Build captcha solver from config
+        captcha_solver = self._build_captcha_solver()
+
+        # Build email client if IMAP credentials available
+        email_client = None
+        if self._imap_address:
+            try:
+                email_client = self.get_imap_client()
+            except Exception as e:
+                logger.debug("Could not create IMAP client: %s", e)
+
+        # Convert cookies dict to list format if needed
+        cookie_list = None
+        if self.cookies:
+            if isinstance(self.cookies, list):
+                cookie_list = self.cookies
+            elif isinstance(self.cookies, dict):
+                cookie_list = [
+                    {"name": k, "value": v, "domain": ".bybitglobal.com"}
+                    for k, v in self.cookies.items()
+                ]
 
         client = PrivateClient(
+            email=self.email_address,
+            password=self.password or "",
+            totp_secret=self.totp_secret or "",
             proxy=self.proxy,
+            cookies=cookie_list,
             device=self.device,
-            captcha_services=captcha_services,
-            country_code=self.preferred_country_code,
+            country_code=self.preferred_country_code or "",
+            captcha_solver=captcha_solver,
+            email_client=email_client,
         )
 
-        # Import cookies if available
-        if self.cookies:
-            client.import_cookies(self.cookies)
-
         return client
+
+    def _build_captcha_solver(self):
+        """Build a captcha solver from config captcha_services."""
+        services = self.config.captcha_services
+        if not services:
+            return None
+        # Use the highest priority enabled service
+        for svc in services:
+            if not svc.get("enabled", True):
+                continue
+            service_name = svc.get("service", "")
+            api_key = svc.get("api_key", "")
+            if not api_key:
+                continue
+            try:
+                if service_name == "capmonster":
+                    from anycaptcha.service.capmonster import CapMonsterService
+                    return CapMonsterService(api_key=api_key)
+                elif service_name == "2captcha":
+                    from anycaptcha.service.twocaptcha import TwoCaptchaService
+                    return TwoCaptchaService(api_key=api_key)
+                elif service_name in ("anticaptcha", "anti-captcha", "anti_captcha"):
+                    from anycaptcha.service.anti_captcha import AntiCaptchaService
+                    return AntiCaptchaService(api_key=api_key)
+                else:
+                    logger.warning("Unknown captcha service: %s", service_name)
+            except ImportError as e:
+                logger.warning("Could not import captcha service %s: %s", service_name, e)
+        return None
 
     def get_imap_client(self) -> ImapClient:
         """Create an IMAP client for this account's email."""
@@ -113,16 +162,14 @@ class ManagedClient:
 
     async def login(self) -> Dict[str, Any]:
         """Perform full login flow with captcha + 2FA handling."""
-        imap_client = self.get_imap_client()
-        result = await self.client.login_logic(
-            email=self.email_address,
-            password=self.password,
-            totp_secret=self.totp_secret,
-            imap_client=imap_client,
+        resp = await self.client.login_logic(
+            solve_captcha=True,
+            use_totp=bool(self.totp_secret),
         )
         # Update cookies after login
         self.cookies = self.client.export_cookies()
-        return result
+        result = resp.result if hasattr(resp, 'result') else resp
+        return result if isinstance(result, dict) else {"status": "ok"}
 
     async def withdraw(
         self,
@@ -133,17 +180,15 @@ class ManagedClient:
         withdraw_type: int = 0,
     ) -> Dict[str, Any]:
         """Execute withdrawal with automatic risk token handling."""
-        imap_client = self.get_imap_client()
-        result = await self.client.withdraw_logic(
+        resp = await self.client.withdraw_logic(
             coin=coin,
             chain=chain,
             address=address,
             amount=amount,
-            withdraw_type=withdraw_type,
-            totp_secret=self.totp_secret,
-            imap_client=imap_client,
+            use_totp=bool(self.totp_secret),
         )
-        return result
+        result = resp.result if hasattr(resp, 'result') else resp
+        return result if isinstance(result, dict) else {"status": "ok"}
 
     async def close(self) -> None:
         """Close the underlying HTTP client."""

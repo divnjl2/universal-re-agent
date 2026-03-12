@@ -22,6 +22,5 @@ from .referral import router as referral_router
 from .spot import router as spot_router
 from .tokensplash import router as tokensplash_router
 from .transfer import router as transfer_router
-from .web3 import router as web3_detail_router
 from .web3 import router as web3_router
 from .withdraw import router as withdraw_router

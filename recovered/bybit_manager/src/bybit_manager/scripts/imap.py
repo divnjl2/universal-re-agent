@@ -1,70 +1,84 @@
 """
-RECOVERED: bybit_manager.scripts.imap
-Skeleton reconstructed from Nuitka binary metadata.
+IMAP batch operations — check email connectivity and fetch codes for accounts.
 """
 
-from . import *  # from bybit_manager.scripts
+from __future__ import annotations
 
-# === Constants ===
-BYBIT_CARD = None  # RECOVERED
-BYBIT_CARD_DEFAULT = None  # RECOVERED
-BYBIT_COMPONENT_ERROR = None  # RECOVERED
-BYBIT_COOKIES_COLUMN = None  # RECOVERED
-BYBIT_COUNTRY_CODE_COLUMN = None  # RECOVERED
-BYBIT_ERRORS = None  # RECOVERED
-BYBIT_HTML_ERROR = None  # RECOVERED
-BYBIT_INVITER_REF_CODE = None  # RECOVERED
-BYBIT_JSON_ERROR = None  # RECOVERED
-BYBIT_MNEMONIC_PHRASE = None  # RECOVERED
-BYBIT_PASSWORD_COLUMN = None  # RECOVERED
-BYBIT_PAY = None  # RECOVERED
-BYBIT_PROXY_COLUMN = None  # RECOVERED
-BYBIT_TOTP_SECRET_COLUMN = None  # RECOVERED
-CF_NOSCRIPTSEL = None  # RECOVERED
-CF_SCRIPTSONLY = None  # RECOVERED
-DEFAULT_MANAGER_ATTR = None  # RECOVERED
-EMAIL_IMAP_ADDRESS_COLUMN = None  # RECOVERED
-EMAIL_IMAP_PASSWORD_COLUMN = None  # RECOVERED
-ERROR_UNEXPECTED_NTCACHEMANAGER_ERROR = None  # RECOVERED
+import asyncio
+import logging
+from typing import Any, Dict, List, Optional
 
-class AbstractAsyncContextManager(object):
-    """RECOVERED: AbstractAsyncContextManager from bybit_manager.scripts.imap"""
-    pass
+from bybit_manager.imap import ImapClient
+from bybit_manager.manager import Manager
 
-class AbstractContextManager(object):
-    """RECOVERED: AbstractContextManager from bybit_manager.scripts.imap"""
-    pass
-
-class AsyncContextManager(object):
-    """RECOVERED: AsyncContextManager from bybit_manager.scripts.imap"""
-    async def asynccontextmanager(self):  # RECOVERED
-        raise NotImplementedError
+logger = logging.getLogger("bybit_manager.scripts.imap")
 
 
-class AsyncContextManagerMixin(object):
-    """RECOVERED: AsyncContextManagerMixin from bybit_manager.scripts.imap"""
-    pass
+async def run_imap_check(
+    manager: Manager,
+    database_ids: List[int],
+    concurrency: int = 5,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Check IMAP connectivity for multiple accounts.
 
-class AsyncPingManager(object):
-    """RECOVERED: AsyncPingManager from bybit_manager.scripts.imap"""
-    pass
+    For each account, attempts to connect to the IMAP server and
+    reports success/failure. This is useful for validating email
+    credentials before running login operations that require email
+    verification codes.
 
-class AwaitableOrContextManager(object):
-    """RECOVERED: AwaitableOrContextManager from bybit_manager.scripts.imap"""
-    pass
+    Returns:
+        {"success": [...], "failed": [...]}
+    """
+    sem = asyncio.Semaphore(concurrency)
+    results: Dict[str, List[Dict[str, Any]]] = {"success": [], "failed": []}
 
-class AwaitableOrContextManagerWrapper(object):
-    """RECOVERED: AwaitableOrContextManagerWrapper from bybit_manager.scripts.imap"""
-    pass
+    async def _check_one(db_id: int):
+        async with sem:
+            try:
+                account = await manager.get_account(db_id)
+                if not account:
+                    results["failed"].append({
+                        "database_id": db_id,
+                        "error": "Account not found",
+                    })
+                    return
 
-class BybitCardCommission(object):
-    """RECOVERED: BybitCardCommission from bybit_manager.scripts.imap"""
-    pass
+                # Get email info for IMAP credentials
+                async with manager.db.session() as session:
+                    from bybit_manager.database.models import Email
+                    email_obj = await session.get(Email, account.email_address)
 
-class BybitClient(object):
-    """RECOVERED: BybitClient from bybit_manager.scripts.imap"""
-    pass
+                if not email_obj or not email_obj.imap_address:
+                    results["failed"].append({
+                        "database_id": db_id,
+                        "email": account.email_address,
+                        "error": "No IMAP address configured",
+                    })
+                    return
 
-class BybitDevice(object):
-    """RECOVERED: BybitDevice from bybit_manager.scripts.imap"""
-    pass
+                imap_client = ImapClient(
+                    email_address=account.email_address,
+                    password=email_obj.imap_password or account.password or "",
+                    imap_address=email_obj.imap_address,
+                    client_id=email_obj.client_id,
+                    refresh_token=email_obj.refresh_token,
+                )
+
+                async with imap_client:
+                    # Connection successful
+                    results["success"].append({
+                        "database_id": db_id,
+                        "email": account.email_address,
+                        "imap_server": email_obj.imap_address,
+                        "status": "connected",
+                    })
+
+            except Exception as e:
+                logger.error("IMAP check failed for %d: %s", db_id, e)
+                results["failed"].append({
+                    "database_id": db_id,
+                    "error": str(e),
+                })
+
+    await asyncio.gather(*[_check_one(db_id) for db_id in database_ids])
+    return results

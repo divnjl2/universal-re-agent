@@ -37,13 +37,17 @@ from sqlalchemy import select
 
 from tg_bot.config import config
 from tg_bot.crud import (
+    assign_accounts_to_user,
     get_accounts_by_country,
     get_accounts_by_kyc_provider_user,
     get_active_price_countries,
     get_bot_settings,
     get_or_create_user,
+    get_users_page,
+    update_user_field,
 )
 from tg_bot.db import get_session
+from tg_bot.filters import IsAdmin
 from tg_bot.keyboards.base import main_reply_keyboard
 from tg_bot.models.account import BybitAccount
 from tg_bot.models.user import User
@@ -209,7 +213,6 @@ async def cmd_set_wallet(message: Message, user_db: User, state: FSMContext, **k
         return
 
     async with get_session() as session:
-        from tg_bot.crud import update_user_field
         await update_user_field(session, user_db.id, wallet_address=address)
 
     await message.answer(f"✅ Wallet address set: <code>{address}</code>")
@@ -227,8 +230,6 @@ async def cmd_give(message: Message, **kwargs: Any) -> None:
 
     From memory: "Неправильный формат команды. Пример: /give 10 UA 123456789"
     """
-    from tg_bot.filters import IsAdmin as _IsAdmin
-
     parts = message.text.split()
     if len(parts) == 1:
         # Show user list for selection
@@ -279,7 +280,6 @@ async def cmd_give(message: Message, **kwargs: Any) -> None:
             return
 
         username = target_user.username or str(target_user_id)
-        from tg_bot.crud import assign_accounts_to_user
         assigned = await assign_accounts_to_user(
             session,
             [a.database_id for a in accounts],

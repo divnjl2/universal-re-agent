@@ -76,7 +76,7 @@ class PrivateClient(BasePrivateClient):
     async def _solve_and_verify_captcha(self, scene: str = "31000") -> Dict[str, Any]:
         """
         Full captcha flow:
-        1. Request captcha order from Bybit (get serial_no + type)
+        1. Request captcha order from Bybit (get serial_no / token)
         2. Solve via external service (capmonster, 2captcha, etc.)
         3. Verify solution with Bybit
         4. Return captcha verification data for use in subsequent requests
@@ -84,17 +84,24 @@ class PrivateClient(BasePrivateClient):
         if not self.captcha_solver:
             raise BybitException(ret_code=-1, ret_msg="No captcha solver configured")
 
+        from .base import RECAPTCHA_SITE_KEY
+
         # Step 1: Get captcha order
         order_resp = await self.get_captcha(scene=scene)
         order_data = order_resp.result or {}
 
         captcha_type = order_data.get("captcha_type", "recaptcha")
         serial_no = order_data.get("serial_no", "")
-        site_key = order_data.get("site_key", "")
-        page_url = order_data.get("page_url", "https://www.bybitglobal.com/en/login")
+        token = order_data.get("token", "")
+        site_key = order_data.get("site_key", RECAPTCHA_SITE_KEY)
+        page_url = order_data.get("page_url", "https://bybitglobal.com")
+
+        # The order response returns a token, not serial_no
+        if not serial_no and token:
+            serial_no = token
 
         if not serial_no:
-            raise BybitException(ret_code=-1, ret_msg="No serial_no in captcha order")
+            raise BybitException(ret_code=-1, ret_msg="No serial_no/token in captcha order")
 
         # Step 2: Solve captcha
         if captcha_type == "recaptcha":
@@ -174,7 +181,7 @@ class PrivateClient(BasePrivateClient):
 
         task = GeeTestV4(
             captcha_id=captcha_id,
-            page_url="https://www.bybitglobal.com/en/login",
+            page_url="https://bybitglobal.com",
             proxy=self.proxy,
         )
         result = await self.captcha_solver.solve(task)
@@ -247,38 +254,44 @@ class PrivateClient(BasePrivateClient):
         """
         Full login flow with automatic captcha solving and 2FA handling.
 
-        1. Attempt direct login
-        2. If captcha required → solve and retry
-        3. If 2FA required → generate TOTP code and verify
+        1. Solve captcha to get verification token
+        2. Attempt login with captcha token + RSA-encrypted password
+        3. If 2FA required → get risk components, verify with TOTP
         4. Update cookies on success
         """
         await self._init_missing_cookies()
 
+        # Step 1: Solve captcha first (required for login)
+        captcha_token = ""
+        if solve_captcha and self.captcha_solver:
+            try:
+                captcha_data = await self._solve_and_verify_captcha(scene="31000")
+                captcha_token = captcha_data.get("verify_result", {}).get(
+                    "token", captcha_data.get("serial_no", "")
+                )
+            except Exception as captcha_err:
+                logger.warning("Captcha solving failed: %s", captcha_err)
+
         try:
-            # Try direct login
+            # Step 2: Login with captcha token
             totp_code = ""
             if use_totp and self.totp_secret:
                 totp_code = await self.wait_totp_code()
 
-            resp = await self.direct_login(totp_code=totp_code)
+            resp = await self.direct_login(
+                totp_code=totp_code,
+                captcha_token=captcha_token,
+            )
             return resp
 
         except BybitComponentError as e:
             logger.info("Login requires verification: %s", e.ret_msg)
 
-            # Solve captcha if needed
-            captcha_data = {}
-            if solve_captcha and self.captcha_solver:
-                try:
-                    captcha_data = await self._solve_and_verify_captcha(scene="31000")
-                except Exception as captcha_err:
-                    logger.warning("Captcha solving failed: %s", captcha_err)
-
-            # Verify risk token
+            # Verify risk token with 2FA
             return await self._verify_challenge_risk_token_logic(
                 risk_token=e.risk_token,
                 challenges=e.challenges,
-                captcha_data=captcha_data,
+                captcha_data={},
             )
 
     async def login_and_verify_risk_token(

@@ -21,6 +21,39 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("bybit_manager.config")
 
+# Captcha defaults recovered from traffic
+CAPMONSTER_API_URL = "https://api.capmonster.cloud"
+CAPMONSTER_USER_AGENT = "python-anycaptcha"
+CAPMONSTER_KEY_LENGTH = 32
+
+RECAPTCHA_SITE_KEY = "6LcJqb0pAAAAAEJCmRWqNFtGGMG7Gr20S-F1TTq6"
+CAPTCHA_SCENE_LOGIN = "31000"
+
+# Proxy provider defaults recovered from traffic
+PROXY_PROVIDERS = {
+    "iproyal": {
+        "host": "geo.iproyal.com",
+        "port": 11250,
+        "credential_pattern": "{user}_country-{cc}_session-{session}_lifetime-168h:{pass}",
+    },
+    "dataimpulse": {
+        "host": "gw.dataimpulse.com",
+        "port": 823,
+        "credential_pattern": "{user}_country-{cc}_session-{session}_lifetime-168h:{pass}",
+    },
+    "nodemaven": {
+        "host": "gate.nodemaven.com",
+        "port": 8080,
+        "credential_pattern": "{user}_country-{cc}_session-{session}_lifetime-168h:{pass}",
+    },
+}
+
+# AdsPower local API
+ADSPOWER_API_URL = "http://localhost:50325"
+
+# License server
+LICENSE_SERVER_URL = "https://ishushka.com"
+
 
 class Config:
     """Application configuration loaded from config.json."""

@@ -224,13 +224,13 @@ class BybitKycService:
                         )
 
                     data = await resp.json()
-                    # Bybit API wraps responses in {"retCode": 0, "retMsg": "OK", "result": ...}
-                    ret_code = data.get("retCode", data.get("ret_code", 0))
+                    # Bybit API wraps responses in {"ret_code": 0, "ret_msg": "success", "result": ..., "ext_code": "", "ext_info": null, "time_now": "..."}
+                    ret_code = data.get("ret_code", data.get("retCode", 0))
                     if ret_code != 0:
                         return ServiceResult.fail(
                             ServiceError(
                                 code=str(ret_code),
-                                message=data.get("retMsg", data.get("ret_msg", "Unknown")),
+                                message=data.get("ret_msg", data.get("retMsg", "Unknown")),
                             )
                         )
                     return ServiceResult.ok(data.get("result", data))

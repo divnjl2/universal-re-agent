@@ -7,8 +7,6 @@ Enums: awardstatus, awardusingstatus, awardtype, awardamountunit,
        businessno, autoclaimtype, productline, subproductline
 """
 
-from __future__ import annotations
-
 import enum
 from datetime import datetime
 

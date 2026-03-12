@@ -54,7 +54,8 @@ class BasePrivateClient(BaseClient):
     # Auth
     URL_LOGIN = "/login"
     URL_LOGOUT = "/user/logout"
-    URL_REGISTER = "/register/permission_v2"
+    URL_REGISTER_PERMISSION = "/register/permission_v2"
+    URL_REGISTER = "/register"
     URL_SEND_EMAIL_CODE_REGISTER = "/private/register/send-email-code"
     URL_IS_EMAIL_EXIST = "/user/public/email-exist"
 
@@ -179,18 +180,43 @@ class BasePrivateClient(BaseClient):
         """Initialize essential cookies if not already present."""
         session = await self._ensure_session()
         cookie_jar = session.cookie_jar
-        # deviceId cookie
         existing = {c.key for c in cookie_jar}
+        guid_val = self.guid
+        if "_by_l_g_d" not in existing:
+            self._load_cookies([{
+                "name": "_by_l_g_d",
+                "value": guid_val,
+                "domain": ".bybitglobal.com",
+            }])
         if "deviceId" not in existing:
             self._load_cookies([{
                 "name": "deviceId",
                 "value": self.device.device_id,
                 "domain": ".bybitglobal.com",
             }])
+        if "sensorsdata2015jssdkcross" not in existing:
+            import base64
+            ts_hex = format(int(time.time() * 1000), 'x')
+            cookie_id = f"19{ts_hex[:10]}-{secrets.token_hex(7)}-1a525636-2073600-19{ts_hex[:10]}"
+            identity = base64.b64encode(
+                json.dumps({"$identity_cookie_id": cookie_id}).encode()
+            ).decode()
+            sensors_data = json.dumps({
+                "distinct_id": cookie_id,
+                "first_id": "",
+                "props": {},
+                "identities": identity,
+                "history_login_id": {"name": "", "value": ""},
+            })
+            self._load_cookies([{
+                "name": "sensorsdata2015jssdkcross",
+                "value": sensors_data,
+                "domain": ".bybitglobal.com",
+            }])
         if "BYBIT_REG_REF_prod" not in existing:
             ref_data = json.dumps({
                 "lang": self.locale,
-                "g": str(uuid.uuid4()),
+                "g": guid_val,
                 "medium": "direct",
                 "url": "www.google.com/",
                 "last_refresh_time": datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT"),
@@ -200,6 +226,13 @@ class BasePrivateClient(BaseClient):
                 "value": ref_data,
                 "domain": ".bybitglobal.com",
             }])
+        for name in ("sajssdk_2015_cross_new_user", "_tt_enable_cookie"):
+            if name not in existing:
+                self._load_cookies([{
+                    "name": name,
+                    "value": "1",
+                    "domain": ".bybitglobal.com",
+                }])
 
     def _get_device_id(self) -> str:
         """Get or generate device ID from cookies."""
@@ -213,22 +246,60 @@ class BasePrivateClient(BaseClient):
     # ================================================================
 
     async def direct_login(self, email: str = "", password: str = "",
-                           totp_code: str = "") -> BybitResponse:
+                           totp_code: str = "",
+                           captcha_token: str = "",
+                           captcha_scene: str = "31000") -> BybitResponse:
         """
         Direct login to Bybit. Posts to /login endpoint.
+        Password is RSA-encrypted with a timestamp.
         Returns profile data on success, raises BybitComponentError if 2FA/captcha needed.
         """
         await self._init_missing_cookies()
+        login_email = email or self.email
+        login_password = password or self.password
+        encrypt_timestamp = str(int(time.time() * 1000))
+        encrypted_password = self._rsa_encrypt_password(login_password, encrypt_timestamp)
+
         payload = {
-            "email": email or self.email,
-            "password": hashlib.md5((password or self.password).encode()).hexdigest(),
-            "type": "email",
-            "device_id": self._get_device_id(),
+            "username": login_email,
+            "proto_ver": "2.1",
+            "encrypt_password": encrypted_password,
+            "encrypt_timestamp": encrypt_timestamp,
         }
+        if captcha_token:
+            payload["magpie_verify_info"] = {
+                "token": captcha_token,
+                "scene": captcha_scene,
+            }
         if totp_code:
             payload["totp_code"] = totp_code
 
         return await self.post(self.URL_LOGIN, json_data=payload)
+
+    @staticmethod
+    def _rsa_encrypt_password(password: str, timestamp: str) -> str:
+        """RSA-encrypt the password for login. Uses PKCS1_v1_5 padding."""
+        try:
+            from Crypto.PublicKey import RSA
+            from Crypto.Cipher import PKCS1_v1_5
+            import base64
+        except ImportError:
+            from Cryptodome.PublicKey import RSA
+            from Cryptodome.Cipher import PKCS1_v1_5
+            import base64
+
+        # Bybit's public RSA key (extracted from web client JS)
+        BYBIT_RSA_PUBLIC_KEY = (
+            "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCjU9YESkhm2GEp6ocZ"
+            "eNXcMGC3P1GnyLjmGUPR6oAi2EGYTVitYJiI4hNc6PEwQsnOMGrz4dPs"
+            "V3FMqWAk3FPWBK0OFWqAolApkYhG+Rvr0FGtmUbLBEIVZ2u8Znh1cBi"
+            "FljpFOi5bFoYsOClQS4WVQWos1TSa3vjEFX4ZKLEAAwIDAQAB"
+        )
+        key = RSA.import_key(base64.b64decode(BYBIT_RSA_PUBLIC_KEY))
+        cipher = PKCS1_v1_5.new(key)
+        plaintext = (password + timestamp).encode("utf-8")
+        encrypted = cipher.encrypt(plaintext)
+        return base64.b64encode(encrypted).decode("utf-8")
 
     async def _register(
         self,
@@ -274,6 +345,10 @@ class BasePrivateClient(BaseClient):
             risk_token=risk_token,
             captcha_data=captcha_data,
         )
+
+    async def get_register_permission(self) -> BybitResponse:
+        """Check if registration is allowed for the current proxy country."""
+        return await self.get(self.URL_REGISTER_PERMISSION)
 
     async def logout(self) -> BybitResponse:
         """Logout from current session."""
@@ -394,12 +469,20 @@ class BasePrivateClient(BaseClient):
     # CAPTCHA / RISK VERIFICATION
     # ================================================================
 
-    async def get_captcha(self, scene: str = "31000") -> BybitResponse:
+    async def get_captcha(self, scene: str = "31000", login_name: str = "") -> BybitResponse:
         """
         Request a captcha order from Bybit.
         Scene 31000 = login/register, 31001 = withdraw, etc.
+        login_name is MD5 hash of the email address.
         """
-        payload = {"scene": scene, "device_id": self._get_device_id()}
+        if not login_name:
+            login_name = hashlib.md5(self.email.encode()).hexdigest()
+        payload = {
+            "login_name": login_name,
+            "scene": scene,
+            "country_code": self.country_code or "",
+            "txid": "",
+        }
         return await self.post(self.URL_CAPTCHA_ORDER, json_data=payload)
 
     async def _verify_captcha(
@@ -457,9 +540,12 @@ class BasePrivateClient(BaseClient):
             captcha_response=g_recaptcha_response,
         )
 
-    async def get_risk_components(self) -> BybitResponse:
-        """Get available risk verification components (captcha types, etc.)."""
-        return await self.get(self.URL_RISK_COMPONENTS)
+    async def get_risk_components(self, risk_token: str = "") -> BybitResponse:
+        """Get available risk verification components for a risk_token."""
+        payload: Dict[str, Any] = {}
+        if risk_token:
+            payload["risk_token"] = risk_token
+        return await self.post(self.URL_RISK_COMPONENTS, json_data=payload)
 
     async def _get_risk_token(
         self,
@@ -483,10 +569,13 @@ class BasePrivateClient(BaseClient):
     ) -> BybitResponse:
         """Verify a risk token with 2FA or email code."""
         payload: Dict[str, Any] = {"risk_token": risk_token}
+        component_list: Dict[str, str] = {}
         if totp_code:
-            payload["totp_code"] = totp_code
+            component_list["google2fa"] = totp_code
         if email_code:
-            payload["email_code"] = email_code
+            component_list["email"] = email_code
+        if component_list:
+            payload["component_list"] = component_list
         return await self.post(self.URL_RISK_VERIFY, json_data=payload)
 
     async def get_risk_token_to_withdraw(
