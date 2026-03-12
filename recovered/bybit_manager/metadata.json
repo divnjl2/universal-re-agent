@@ -1,0 +1,35 @@
+{
+  "target": "bybit_manager",
+  "dll_size_mb": 188.73095703125,
+  "custom_packages": {
+    "anycaptcha": 31,
+    "app": 35,
+    "better_proxy": 1,
+    "bybit": 76,
+    "bybit_client": 76,
+    "bybit_manager": 42,
+    "ccxt": 138,
+    "cexwithdrawer": 2,
+    "chrome": 2,
+    "common": 14,
+    "hwid": 6,
+    "imap_tools": 9,
+    "mailbox_": 2,
+    "proxy_rotator": 1,
+    "sumsub": 2,
+    "tencent": 3
+  },
+  "total_custom_modules": 440,
+  "total_classes": 6667,
+  "total_constants": 15270,
+  "total_methods": 46950,
+  "api_endpoints": 95,
+  "configs": [
+    "captcha_services.json",
+    "config.json",
+    "countries_to_iso2.json",
+    "email_services.json",
+    "proxy_services.json",
+    "alembic.ini"
+  ]
+}

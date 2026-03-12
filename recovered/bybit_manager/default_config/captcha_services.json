@@ -1,0 +1,66 @@
+{
+  "capmonster.cloud": {
+    "api_key": null,
+    "captcha_type": "recaptcha",
+    "max_captcha_tasks": 100,
+    "proxy": null,
+    "request_balance_on_startup": false,
+    "solve_with_account_proxy": true
+  },
+  "2captcha.com": {
+    "api_key": null,
+    "captcha_type": "recaptcha",
+    "max_captcha_tasks": 100,
+    "proxy": null,
+    "request_balance_on_startup": false,
+    "solve_with_account_proxy": true
+  },
+  "anti-captcha.com": {
+    "api_key": null,
+    "captcha_type": "recaptcha",
+    "max_captcha_tasks": 100,
+    "proxy": null,
+    "request_balance_on_startup": false,
+    "solve_with_account_proxy": true
+  },
+  "azcaptcha.com": {
+    "api_key": null,
+    "captcha_type": "recaptcha",
+    "max_captcha_tasks": 100,
+    "proxy": null,
+    "request_balance_on_startup": false,
+    "solve_with_account_proxy": true
+  },
+  "cap.guru": {
+    "api_key": null,
+    "captcha_type": "recaptcha",
+    "max_captcha_tasks": 100,
+    "proxy": null,
+    "request_balance_on_startup": false,
+    "solve_with_account_proxy": true
+  },
+  "cptch.net": {
+    "api_key": null,
+    "captcha_type": "recaptcha",
+    "max_captcha_tasks": 100,
+    "proxy": null,
+    "request_balance_on_startup": false,
+    "solve_with_account_proxy": true
+  },
+  "deathbycaptcha.com": {
+    "api_key": null,
+    "captcha_type": "recaptcha",
+    "max_captcha_tasks": 100,
+    "proxy": null,
+    "request_balance_on_startup": false,
+    "solve_with_account_proxy": true
+  },
+  "multibot.in": {
+    "api_key": null,
+    "captcha_type": "recaptcha",
+    "max_captcha_tasks": 100,
+    "proxy": null,
+    "request_balance_on_startup": false,
+    "solve_with_account_proxy": false
+  }
+}

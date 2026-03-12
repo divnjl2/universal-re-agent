@@ -8,3 +8,11 @@ __pycache__/
 
 # Temp files
 _pgdump.bat
+_check_pydivert.py
+
+# Traffic captures — keep summaries, exclude raw data
+traffic/*.pcap
+traffic/*.jsonl
+traffic/raw_streams/
+traffic/sniff_stdout.log
+traffic/mitmdump_*.log

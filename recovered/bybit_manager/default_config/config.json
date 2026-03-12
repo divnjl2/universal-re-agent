@@ -1,0 +1,52 @@
+{
+  "LICENSE_KEY": null,
+  "DATABASE": {
+    "DATABASE_NAME": "bybit",
+    "USERNAME": "postgres",
+    "PASSWORD": null,
+    "HOST": "localhost",
+    "PORT": 5432
+  },
+  "CONNECTION": {
+    "API_ALLOW_ORIGINS": ["https://holakarma.github.io"],
+    "API_HOST": "127.0.0.1",
+    "API_PORT": 8000,
+    "REQUEST_ERROR_RETRY_ATTEMPTS": 3,
+    "CONNECT_TIMEOUT": 10,
+    "READ_TIMEOUT": 7,
+    "PASTEBIN_PROXY": null,
+    "PUBLIC_CLIENT_PROXY": null,
+    "SOLANA_JSON_RPC": "https://solana-mainnet.phantom.app/YBPpkkN4g91xDiAnTE9r0RcMkjg0sKUIWvAfoFVJ",
+    "WEB3_RPC": {
+      "1":     "https://1rpc.io/eth",
+      "10":    "https://1rpc.io/op",
+      "56":    "https://1rpc.io/bnb",
+      "8453":  "https://1rpc.io/base",
+      "42161": "https://1rpc.io/arb"
+    },
+      "REFRESH_PROXY_ON_ERROR": false
+  },
+  "DEFAULT": {
+    "ASK_DELAYED_START": true,
+    "CAPTCHA_SERVICES": ["capmonster.cloud"],
+    "DELAY_BETWEEN_ACCOUNTS": [60, 90],
+    "DO_SHUFFLE": true,
+    "REQUESTS_LOG": false,
+    "MAX_TASKS": 10,
+    "DISPLAY_MARKS": ["AH", "TS", "LP", "PH", "DTT", "IDO"],
+    "AUTO_RETRY_ERROR": false,
+    "ERROR_RETRY_ATTEMPTS": 3,
+    "ADSPOWER_STARTUP_CUSTOM_LINKS": ["https://www.bybit.com"]
+  },
+  "EMAIL": {
+    "DO_HIDE": true,
+    "DELAY_BETWEEN_SEARCHES": 10,
+    "RESEND_ATTEMPTS": 2,
+    "SEARCH_ATTEMPTS": 9,
+    "SEARCH_REGEXP_LIST": ["\\s(\\d{6})[\\s\\.]"]
+  },
+  "ICLOUDS": [
+    { "mail": "main1@icloud.com", "app_specific_password": "xxxx-xxxx-xxxx-xxxx" },
+    { "mail": "main2@icloud.com", "app_specific_password": "xxxx-xxxx-xxxx-xxxx" }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "nodemaven": {
+    "template": "http://example_gmail_com-country-{country}-sid-{session_id}-filter-medium:jv5pt54tqyz@gate.nodemaven.com:8080",
+    "country_case": "upper"
+  },
+  "dataimpulse": {
+    "template": "http://example__cr.{country}:76fddsaD1086df4@gw.dataimpulse.com:{random_port}",
+    "min_port": 10000,
+    "max_port": 20000,
+    "country_case": "lower"
+  }
+}

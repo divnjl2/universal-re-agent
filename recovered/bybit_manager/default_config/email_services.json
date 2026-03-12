@@ -1,0 +1,51 @@
+[
+  {
+    "host": "imap.gmail.com",
+    "domains": ["@gmail.com"],
+    "folders": ["INBOX", "Spam"]
+  },
+  {
+    "host": "imap.mail.ru",
+    "domains": [
+      "@list.ru",
+      "@bk.ru",
+      "@inbox.ru",
+      "@mail.ru"
+    ],
+    "folders": ["INBOX", "Spam"]
+  },
+  {
+    "host": "outlook.office365.com",
+    "domains": [
+      "@hotmail.com",
+      "@outlook.com"
+    ],
+    "folders": ["INBOX", "Junk"],
+    "xoauth": true
+  },
+  {
+    "host": "imap.rambler.ru",
+    "domains": [
+      "@rambler.ru",
+      "@ro.ru",
+      "@myrambler.ru",
+      "@autorambler.ru"
+    ],
+    "folders": ["INBOX", "Spam"]
+  },
+  {
+    "host": "imap.firstmail.ltd",
+    "domains": [
+      "@superocomail.com",
+      "@velismail.com",
+      "@reevalmail.com",
+      "@veridicalmail.com"
+    ],
+    "folders": ["INBOX"]
+  },
+  {
+    "host": "imap.mail.me.com",
+    "domains": ["@icloud.com"],
+    "folders": ["INBOX"]
+  }
+]
